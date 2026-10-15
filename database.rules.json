@@ -1,0 +1,18 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "Players": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "Backup": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "Config": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

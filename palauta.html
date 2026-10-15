@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Emergency Restore</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; text-align: center; background: #f4f7f6; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
+        button { background: #e67e22; color: white; border: none; padding: 15px 30px; border-radius: 5px; cursor: pointer; font-size: 1.1em; }
+        button:hover { background: #d35400; }
+        #status { margin-top: 20px; font-weight: bold; }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Emergency Restore (v2)</h1>
+        <p>This restores the original player data (Groups A-D) to the database.</p>
+        <button id="restoreBtn">Restore the original state</button>
+        <div id="status"></div>
+        <p style="margin-top: 30px;"><a href="dashboard.html">Back to the dashboard</a></p>
+    </div>
+    <script type="module" src="palauta.js"></script>
+</body>
+</html>
