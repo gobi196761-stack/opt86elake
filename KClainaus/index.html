@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <title>KClainaus - Lainausjärjestelmä</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f7f6; }
+        .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button { background: #27ae60; color: white; border: none; padding: 15px; width: 100%; font-size: 1.1em; cursor: pointer; border-radius: 5px; }
+    </style>
+</head>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<body>
+    <h1>Lainauslomake</h1>
+    <div class="section">
+        <input type="text" id="isantaNimi" placeholder="Isännän nimi">
+        <input type="email" id="isantaEmail" placeholder="Isännän sähköposti">
+        <input type="text" id="vierasNimi" placeholder="Vieraan nimi">
+        <input type="email" id="vierasEmail" placeholder="Vieraan sähköposti">
+    </div>
+    <div class="section">
+        <h2>Isännän tarkistuslista</h2>
+        <label><input type="checkbox" class="isanta-check" value="Varusteet tarkistettu"> Varusteet tarkistettu</label>
+        <label><input type="checkbox" class="isanta-check" value="Alus merikelpoinen"> Alus merikelpoinen</label>
+        <label><input type="checkbox" class="isanta-check" value="Käyttöopastus annettu"> Käyttöopastus annettu</label>
+    </div>
+    <div class="section">
+        <h2>Vieraan tarkistuslista</h2>
+        <label><input type="checkbox" class="vieras-check" value="Uimataito vakuutettu"> Uimataito vakuutettu</label>
+        <label><input type="checkbox" class="vieras-check" value="Pelastusliivit kunnossa"> Pelastusliivit kunnossa</label>
+        <label><input type="checkbox" class="vieras-check" value="Sää tarkistettu"> Sää tarkistettu</label>
+    </div>
+    <button id="lahetaBtn">Lähetä ja tallenna</button>
+    <script src="app.js"></script>
+</body>
+</html>
