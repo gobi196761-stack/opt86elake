@@ -11,9 +11,13 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
+      min-height: 100dvh;
       margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
       background-color: #f5f5f5;
+      -webkit-text-size-adjust: 100%;
     }
 
     #loginContainer {
@@ -21,7 +25,9 @@
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      width: 300px;
+      width: 100%;
+      max-width: 360px;
+      box-sizing: border-box;
     }
 
     #loginContainer label {
@@ -38,17 +44,24 @@
       border: 1px solid #ccc;
       border-radius: 4px;
       box-sizing: border-box;
+      font-size: 16px; /* prevents iOS auto-zoom on focus */
     }
 
     #loginContainer button {
       width: 100%;
       padding: 10px;
+      min-height: 44px; /* comfortable touch target */
       background-color: #3498db;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
       font-size: 16px;
+    }
+
+    #loginContainer a {
+      display: inline-block;
+      padding: 6px 4px; /* bigger tap area */
     }
 
     #loginContainer button:hover {
