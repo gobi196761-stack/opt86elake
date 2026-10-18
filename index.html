@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log in</title>
+  <style>
+    /* Tyylit lomakkeelle */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+      background-color: #f5f5f5;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    #loginContainer {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 360px;
+      box-sizing: border-box;
+    }
+
+    #loginContainer label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    #loginContainer input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 16px; /* prevents iOS auto-zoom on focus */
+    }
+
+    #loginContainer button {
+      width: 100%;
+      padding: 10px;
+      min-height: 44px; /* comfortable touch target */
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    #loginContainer a {
+      display: inline-block;
+      padding: 6px 4px; /* bigger tap area */
+    }
+
+    #loginContainer button:hover {
+      background-color: #2980b9;
+    }
+
+    /* Piilotettu tila */
+    .hidden {
+      display: none;
+    }
+
+    /* Viestin tyylit */
+    #successMessage {
+      text-align: center;
+      font-size: 1.2em;
+      color: #2ecc71;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Kirjautumislomake -->
+  <div id="loginContainer">
+        <div style="text-align: center; margin-bottom: 15px; color: #7f8c8d; font-size: 0.8em;">Version 1.2</div>
+        <form id="loginForm">
+      <label for="email">Email:</label>
+      <input type="email" id="email" required>
+
+      <label for="password">Password:</label>
+      <input type="password" id="password" required>
+
+      <button type="button" onclick="login()">Sign in</button>
+      <p style="text-align: center; margin-top: 10px; font-size: 0.85em;">
+        <a href="#" onclick="forgotPassword()" style="color: #3498db; text-decoration: none;">Forgot your password?</a>
+      </p>
+      <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+      <button type="button" onclick="loginAsVisitor()" style="background-color: #95a5a6;">Sign in as visitor</button>
+      <p style="text-align: center; margin-top: 15px; font-size: 0.9em;">
+        Don't have an account? <a href="#" onclick="toggleAuthMode()">Register here</a>
+      </p>
+      <p style="text-align: center; margin-top: 10px; font-size: 0.8em;">
+        <a href="palauta.html" style="color: #e67e22;">Emergency restore</a>
+      </p>
+    </form>
+
+    <form id="registerForm" class="hidden">
+      <label for="reg-name">Player name:</label>
+      <input type="text" id="reg-name" placeholder="Lastname Firstname" required>
+
+      <label for="reg-email">Email:</label>
+      <input type="email" id="reg-email" required>
+
+      <label for="reg-password">Password:</label>
+      <input type="password" id="reg-password" required>
+
+      <button type="button" onclick="register()">Create account</button>
+      <p style="text-align: center; margin-top: 15px; font-size: 0.9em;">
+        Already have an account? <a href="#" onclick="toggleAuthMode()">Sign in</a>
+      </p>
+    </form>
+  </div>
+
+  <!-- Onnistumisviesti -->
+  <div id="successMessage" class="hidden">
+    Login successful! Redirecting you...
+  </div>
+
+  <!-- Lataa Firebase-skriptit ja sovelluksen koodi -->
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Poistettu SPA-uudelleenohjaus: tämä on monisivuinen sivusto
+# (index.html + dashboard.html), joten kaikkien polkujen
+# ohjaaminen index.html-sivulle rikkoaisi suoran navigoinnin.

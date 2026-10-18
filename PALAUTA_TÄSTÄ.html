@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Emergency Restore</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; background: #f0f2f5; -webkit-text-size-adjust: 100%; }
+        .box { background: white; padding: 30px 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; width: 100%; box-sizing: border-box; margin: 0 auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; min-height: 48px; padding: 12px; background: #e67e22; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #d35400; }
+        #status { margin-top: 20px; font-weight: bold; }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Emergency Restore</h1>
+        <p>Sign in as an administrator to restore the data.</p>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button id="btn">Sign in and restore data</button>
+        <div id="status"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+        import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpw6dswlMirzivT3r3H4X3TYeDbn9Hjgo",
+            authDomain: "testisofta-f0e2a.firebaseapp.com",
+            databaseURL: "https://testisofta-f0e2a-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "testisofta-f0e2a",
+            storageBucket: "testisofta-f0e2a.firebasestorage.app",
+            messagingSenderId: "367683236352",
+            appId: "1:367683236352:web:7123a65c4ef7db5cfadee5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        const initialData = {
+            "Ryhmä A": {
+                "pelaaja1": { "nimi": "Ågren Pekka", "rating": 2207, "pisteet": 0, "sijoitus": 1 },
+                "pelaaja2": { "nimi": "Slesar Tomas", "rating": 2143, "pisteet": 0, "sijoitus": 2 },
+                "pelaaja3": { "nimi": "Debazac Florent", "rating": 2042, "pisteet": 0, "sijoitus": 3 },
+                "pelaaja4": { "nimi": "Seppälä Marko", "rating": 1851, "pisteet": 0, "sijoitus": 4 },
+                "pelaaja5": { "nimi": "Vimpari Lasse", "rating": 1833, "pisteet": 0, "sijoitus": 5 },
+                "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
+            },
+            "Ryhmä B": {
+                "pelaaja1": { "nimi": "Niemelä Konsta", "rating": 1916, "pisteet": 0, "sijoitus": 1 },
+                "pelaaja2": { "nimi": "Koponen Saku", "rating": 1746, "pisteet": 0, "sijoitus": 2 },
+                "pelaaja3": { "nimi": "Vuoste Hannu", "rating": 1701, "pisteet": 0, "sijoitus": 3 },
+                "pelaaja4": { "nimi": "Halavaara Kari", "rating": 1561, "pisteet": 0, "sijoitus": 4 },
+                "pelaaja5": { "nimi": "Trofimov Vitali", "rating": 1339, "pisteet": 0, "sijoitus": 5 },
+                "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
+            },
+            "Ryhmä C": {
+                "pelaaja1": { "nimi": "Honkavaara Oskari", "rating": 1561, "pisteet": 0, "sijoitus": 1 },
+                "pelaaja2": { "nimi": "Zhu Ning", "rating": 1428, "pisteet": 0, "sijoitus": 2 },
+                "pelaaja3": { "nimi": "Salminen Jukka-Pekka", "rating": 1349, "pisteet": 0, "sijoitus": 3 },
+                "pelaaja4": { "nimi": "Tuuttila Tapio", "rating": 1295, "pisteet": 0, "sijoitus": 4 },
+                "pelaaja5": { "nimi": "Mikkola Pekka", "rating": 1273, "pisteet": 0, "sijoitus": 5 },
+                "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
+            },
+            "Ryhmä D": {
+                "pelaaja1": { "nimi": "Trofimov Dennis", "rating": 1335, "pisteet": 0, "sijoitus": 1 },
+                "pelaaja2": { "nimi": "Hiltunen Teijo", "rating": 1200, "pisteet": 0, "sijoitus": 2 },
+                "pelaaja3": { "nimi": "Sammalneva Virpi", "rating": 1195, "pisteet": 0, "sijoitus": 3 },
+                "pelaaja4": { "nimi": "Kääriäinen Juha", "rating": 925, "pisteet": 0, "sijoitus": 4 },
+                "pelaaja5": { "nimi": "Montin Aapo", "rating": 900, "pisteet": 0, "sijoitus": 5 },
+                "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
+            }
+        };
+
+        document.getElementById('btn').onclick = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const status = document.getElementById('status');
+            
+            status.textContent = "Signing in...";
+            status.className = "";
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                status.textContent = "Login successful! Restoring data...";
+                
+                await set(ref(db, "Players"), initialData);
+                await set(ref(db, "Backup/Players"), initialData);
+                
+                status.textContent = "DONE! The data has been restored. You can now open the website normally.";
+                status.className = "success";
+            } catch (e) {
+                status.textContent = "Error: " + e.message;
+                status.className = "error";
+            }
+        };
+    </script>
+</body>
+</html>
