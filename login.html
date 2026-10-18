@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <title>Opt86elake - Kirjautuminen</title>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function(){ emailjs.init("DnLC7GQCglOezkCfw"); })();
+    </script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding: 50px; background: #f4f7f6; }
+        .box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 350px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Opt86elake - Kirjautuminen</h2>
+        <input type="email" id="email1" placeholder="Yhteyshenkilö 1 sähköposti">
+        <input type="email" id="email2" placeholder="Yhteyshenkilö 2 sähköposti">
+        <button onclick="sendCodes()">Lähetä koodit</button>
+        <div id="codeArea" style="display:none; margin-top:20px;">
+            <input type="text" id="code1" placeholder="Koodi 1">
+            <input type="text" id="code2" placeholder="Koodi 2">
+            <button onclick="verifyCodes()">Vahvista ja kirjaudu</button>
+        </div>
+    </div>
+    <script src="auth.js"></script>
+</body>
+</html>
