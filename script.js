@@ -123,7 +123,7 @@ function showSuccessAndRedirect() {
     if (successMessage) successMessage.classList.remove("hidden");
 
     setTimeout(() => {
-        window.location.href = "dashboard.html";
+        window.location.href = "dashboard_elake.html";
     }, 1500);
 }
 
@@ -1199,3 +1199,4 @@ window.onload = async function () {
   }
 };
 // Vercel trigger
+
