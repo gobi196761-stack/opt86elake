@@ -959,19 +959,41 @@ window.deletePlayer = async function(groupKey, playerId) {
   // Tämä funktio on nyt tyhjä, koska poistot tehdään muokkaustilassa
 };
 
+// Siirtyjien määrän valinta alasvetovalikosta (oletus 1).
+// Palauttaa valitun luvun, tai null jos käyttäjä peruu.
+function chooseMoveCount() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.id = "move-count-dialog";
+    overlay.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; display:flex; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;";
+    overlay.innerHTML = `
+      <div style="background:white; padding:20px; border-radius:8px; max-width:360px; width:100%; box-sizing:border-box;">
+        <h3 style="margin-top:0;">Generate new groups</h3>
+        <label for="move-count-select" style="display:block; margin-bottom:8px; font-weight:bold;">Players moving up and down:</label>
+        <select id="move-count-select" style="width:100%; padding:8px; font-size:16px; margin-bottom:12px;">
+          <option value="0">0</option>
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+        </select>
+        <p style="font-size:0.9em; color:#7f8c8d;">This fetches the latest ratings and lets you edit the groups before saving.</p>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" id="move-count-cancel" style="background:#95a5a6;">Cancel</button>
+          <button type="button" id="move-count-ok" style="background:#27ae60;">Start</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const close = (value) => { overlay.remove(); resolve(value); };
+    overlay.querySelector("#move-count-ok").onclick = () =>
+      close(parseInt(overlay.querySelector("#move-count-select").value));
+    overlay.querySelector("#move-count-cancel").onclick = () => close(null);
+  });
+}
+
 // RYHMIEN GENERONTILOGIIKKA (PARANNETTU + MANUAALINEN MUOKKAUS)
 window.updateGroups = async function () {
-  const moveCountStr = prompt("How many players move up and down? (0, 1 or 2):", "2");
-  const moveCount = parseInt(moveCountStr);
-  
-  if (isNaN(moveCount) || (moveCount < 0 || moveCount > 2)) {
-    alert("Choose 0, 1 or 2.");
-    return;
-  }
-
-  if (!confirm(`Start generating new groups (${moveCount} players move up/down)? This fetches the latest ratings and lets you edit the groups before saving.`)) {
-    return;
-  }
+  const moveCount = await chooseMoveCount();
+  if (moveCount === null) return;
 
   try {
     // 1. Hae uusimmat ratingit
