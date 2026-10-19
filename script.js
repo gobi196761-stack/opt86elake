@@ -3,13 +3,13 @@ import { getDatabase, ref, get, set, update } from 'https://www.gstatic.com/fire
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDpw6dswlMirzivT3r3H4X3TYeDbn9Hjgo",
-  authDomain: "testisofta-f0e2a.firebaseapp.com",
-  databaseURL: "https://testisofta-f0e2a-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "testisofta-f0e2a",
-  storageBucket: "testisofta-f0e2a.firebasestorage.app",
-  messagingSenderId: "367683236352",
-  appId: "1:367683236352:web:7123a65c4ef7db5cfadee5"
+  apiKey: "AIzaSyCx-WWULj2y8-ZfY7zKq-fCAkELwwP0-Ak",
+  authDomain: "opt86elake.firebaseapp.com",
+  databaseURL: "https://opt86elake-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "opt86elake",
+  storageBucket: "opt86elake.firebasestorage.app",
+  messagingSenderId: "759056126209",
+  appId: "1:759056126209:web:5275a95b76577e3d268b00"
 };
 
 const app = initializeApp(firebaseConfig);

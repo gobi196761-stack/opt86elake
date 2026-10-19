@@ -38,7 +38,7 @@ const initialData = {
 const data = JSON.stringify(initialData);
 
 const options = {
-  hostname: 'testisofta-f0e2a-default-rtdb.europe-west1.firebasedatabase.app',
+  hostname: 'opt86elake-default-rtdb.europe-west1.firebasedatabase.app',
   path: '/Players.json',
   method: 'PUT',
   headers: {
