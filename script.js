@@ -987,7 +987,12 @@ window.updateGroups = async function () {
     const groupsRef = ref(db, "Players");
     const snapshot = await get(groupsRef);
     const originalData = snapshot.val();
-    if (!originalData) return;
+    if (!originalData) {
+      // Tyhjä tietokanta (uusi kisa): avataan muokkaustila yhdellä tyhjällä
+      // ryhmällä, johon pelaajat lisätään käsin.
+      renderEditGroups([{ key: "Ryhmä A", players: [] }]);
+      return;
+    }
 
     let allGroups = [];
     Object.entries(originalData).forEach(([gKey, group]) => {
