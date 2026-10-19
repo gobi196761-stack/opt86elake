@@ -68,8 +68,14 @@ window.register = async function () {
     }
 
     try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
         // Estä nimen käyttö, jos jokin käyttäjä käyttää jo saman nimistä nimeä
-        // (vertailu: pienet kirjaimet, välilyönnit ja sanajärjestys eivät merkitse)
+        // (vertailu: pienet kirjaimet, välilyönnit ja sanajärjestys eivät merkitse).
+        // Tarkistus tehdään vasta tunnuksen luonnin jälkeen, koska tietokannan
+        // säännöt sallivat lukemisen vain kirjautuneelle; varatulla nimellä
+        // juuri luotu tunnus poistetaan.
         const regUsersSnapshot = await get(ref(db, "Users"));
         const regAllUsers = regUsersSnapshot.val() || {};
         const regNameKey = normalizeNameKey(name);
@@ -77,12 +83,10 @@ window.register = async function () {
             u && u.nimi && normalizeNameKey(u.nimi) === regNameKey
         );
         if (regNameTaken) {
+            await user.delete();
             alert("This name is already in use by another user. Choose a different name or contact the administrator.");
             return;
         }
-
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
 
         // Tallenna käyttäjän nimi ja rooli.
         // Nimen on MUISTUTTAVA tallentua, muuten sitä kysytään myöhemmin
