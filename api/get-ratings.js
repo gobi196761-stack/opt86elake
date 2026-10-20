@@ -3,10 +3,15 @@
 // ja palauttaa ne muodossa [{ nimi, rating }, ...]
 
 const SPTL_API = "https://proxy6.pingisliitto.fi/api/v1/rating/published-list?date=latest&view=ranking";
-const SPTL_BEARER_TOKEN = "VApOOyVILQntxj90NY3HflqajtBjuFd1TNb7mmDPhJ3PTF6i-AITWBhDYUasoa4q4g==";
+// Token tulee ympäristömuuttujasta (Vercel: Settings -> Environment Variables)
+const SPTL_BEARER_TOKEN = process.env.SPTL_BEARER_TOKEN;
 
 export default async function handler(request, response) {
   console.log("Vercel function started: get-ratings");
+
+  if (!SPTL_BEARER_TOKEN) {
+    return response.status(500).json({ error: "SPTL_BEARER_TOKEN environment variable is not set" });
+  }
   
   try {
     const sptlResponse = await fetch(SPTL_API, {

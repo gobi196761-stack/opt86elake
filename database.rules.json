@@ -1,18 +1,60 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
+    ".read": false,
+    ".write": false,
     "Players": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      "$group": {
+        "ottelut": {
+          "$match": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && data.exists() && newData.exists() && ((($match.beginsWith('0-') || $match.endsWith('-0')) && data.parent().parent().child('pelaaja1/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja1/nameKey').val()).val() === auth.uid) || (($match.beginsWith('1-') || $match.endsWith('-1')) && data.parent().parent().child('pelaaja2/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja2/nameKey').val()).val() === auth.uid) || (($match.beginsWith('2-') || $match.endsWith('-2')) && data.parent().parent().child('pelaaja3/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja3/nameKey').val()).val() === auth.uid) || (($match.beginsWith('3-') || $match.endsWith('-3')) && data.parent().parent().child('pelaaja4/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja4/nameKey').val()).val() === auth.uid) || (($match.beginsWith('4-') || $match.endsWith('-4')) && data.parent().parent().child('pelaaja5/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja5/nameKey').val()).val() === auth.uid) || (($match.beginsWith('5-') || $match.endsWith('-5')) && data.parent().parent().child('pelaaja6/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja6/nameKey').val()).val() === auth.uid) || (($match.beginsWith('6-') || $match.endsWith('-6')) && data.parent().parent().child('pelaaja7/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja7/nameKey').val()).val() === auth.uid) || (($match.beginsWith('7-') || $match.endsWith('-7')) && data.parent().parent().child('pelaaja8/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja8/nameKey').val()).val() === auth.uid) || (($match.beginsWith('8-') || $match.endsWith('-8')) && data.parent().parent().child('pelaaja9/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja9/nameKey').val()).val() === auth.uid) || (($match.beginsWith('9-') || $match.endsWith('-9')) && data.parent().parent().child('pelaaja10/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja10/nameKey').val()).val() === auth.uid) || (($match.beginsWith('10-') || $match.endsWith('-10')) && data.parent().parent().child('pelaaja11/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja11/nameKey').val()).val() === auth.uid) || (($match.beginsWith('11-') || $match.endsWith('-11')) && data.parent().parent().child('pelaaja12/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja12/nameKey').val()).val() === auth.uid) || (($match.beginsWith('12-') || $match.endsWith('-12')) && data.parent().parent().child('pelaaja13/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja13/nameKey').val()).val() === auth.uid) || (($match.beginsWith('13-') || $match.endsWith('-13')) && data.parent().parent().child('pelaaja14/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja14/nameKey').val()).val() === auth.uid) || (($match.beginsWith('14-') || $match.endsWith('-14')) && data.parent().parent().child('pelaaja15/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja15/nameKey').val()).val() === auth.uid) || (($match.beginsWith('15-') || $match.endsWith('-15')) && data.parent().parent().child('pelaaja16/nameKey').isString() && root.child('NameIndex/' + data.parent().parent().child('pelaaja16/nameKey').val()).val() === auth.uid))",
+            ".validate": "newData.isString() && newData.val().matches(/^(TBD|3-0|3-1|3-2|0-3|1-3|2-3)$/)"
+          }
+        }
+      }
     },
-    "Backup": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+    "Users": {
+      ".read": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid && !data.exists()",
+        ".validate": "(auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true) || (newData.hasChildren(['nimi', 'nameKey']) && newData.child('nimi').isString() && newData.child('nimi').val().length >= 2 && newData.child('nimi').val().length <= 60 && newData.parent().parent().child('NameIndex/' + newData.child('nameKey').val()).val() === $uid)",
+        "nimi": {
+          ".validate": "newData.isString()"
+        },
+        "nameKey": {
+          ".validate": "newData.isString()"
+        },
+        "rooli": {
+          ".validate": "newData.val() === 'pelaaja'"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "NameIndex": {
+      ".read": "auth != null && auth.provider !== 'anonymous'",
+      ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      "$key": {
+        ".write": "auth != null && auth.provider !== 'anonymous' && !data.exists() && newData.val() === auth.uid && !root.child('Users/' + auth.uid).exists() && newData.parent().parent().child('Users/' + auth.uid + '/nameKey').val() === $key",
+        ".validate": "newData.isString()"
+      }
     },
     "Config": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && auth.provider !== 'anonymous'",
+      ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      "AdminUids": {
+        "$uid": {
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "Backup": {
+      ".read": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true"
     }
   }
 }

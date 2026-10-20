@@ -3,7 +3,8 @@
 // ja palauttaa ne muodossa [{ nimi, rating }, ...]
 
 const SPTL_API = "https://proxy6.pingisliitto.fi/api/v1/rating/published-list?date=latest&view=ranking";
-const SPTL_BEARER_TOKEN = "VApOOyVILQntxj90NY3HflqajtBjuFd1TNb7mmDPhJ3PTF6i-AITWBhDYUasoa4q4g==";
+// Token tulee ympäristömuuttujasta (Vercel: Settings -> Environment Variables)
+const SPTL_BEARER_TOKEN = process.env.SPTL_BEARER_TOKEN;
 
 exports.handler = async function(event, context) {
   console.log("Netlify function started: get-ratings");

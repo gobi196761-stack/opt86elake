@@ -22,6 +22,37 @@ function normalizeNameKey(name) {
     return (name || "").trim().toLowerCase().replace(/\s+/g, " ").split(" ").sort().join(" ");
 }
 
+// NameIndex-avain: normalisoitu nimi ilman merkkejä, joita Firebase ei salli avaimissa.
+// Sama avain tallennetaan käyttäjälle (Users/{uid}/nameKey) ja ryhmän pelaajalle
+// (Players/{ryhmä}/pelaajaN/nameKey); tietokannan säännöt tunnistavat pelaajan sen kautta.
+function nameKeyFor(name) {
+    return normalizeNameKey(name).replace(/[.#$\[\]\/]/g, "_");
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+}
+
+// Varaa nimen käyttäjälle: Users-tietue ja NameIndex kirjoitetaan yhdellä
+// päivityksellä. Säännöt hylkäävät varauksen, jos nimi on jo jonkun muun.
+async function claimName(uid, name) {
+    const nameKey = nameKeyFor(name);
+    const taken = await get(ref(db, `NameIndex/${nameKey}`));
+    if (taken.exists() && taken.val() !== uid) return false;
+    try {
+        await update(ref(db), {
+            [`Users/${uid}`]: { nimi: name, nameKey, rooli: "pelaaja" },
+            [`NameIndex/${nameKey}`]: uid
+        });
+        return true;
+    } catch (e) {
+        console.error("Name claim failed:", e);
+        return false;
+    }
+}
+
 // AUTH UI LOGIC
 window.toggleAuthMode = function() {
     document.getElementById("loginForm").classList.toggle("hidden");
@@ -71,37 +102,14 @@ window.register = async function () {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Estä nimen käyttö, jos jokin käyttäjä käyttää jo saman nimistä nimeä
-        // (vertailu: pienet kirjaimet, välilyönnit ja sanajärjestys eivät merkitse).
-        // Tarkistus tehdään vasta tunnuksen luonnin jälkeen, koska tietokannan
-        // säännöt sallivat lukemisen vain kirjautuneelle; varatulla nimellä
-        // juuri luotu tunnus poistetaan.
-        const regUsersSnapshot = await get(ref(db, "Users"));
-        const regAllUsers = regUsersSnapshot.val() || {};
-        const regNameKey = normalizeNameKey(name);
-        const regNameTaken = Object.values(regAllUsers).some(u =>
-            u && u.nimi && normalizeNameKey(u.nimi) === regNameKey
-        );
-        if (regNameTaken) {
+        // Nimi varataan vasta tunnuksen luonnin jälkeen, koska tietokannan
+        // säännöt sallivat sen vain kirjautuneelle. Jos nimi on jo jonkun
+        // muun (vertailu: pienet kirjaimet, välilyönnit ja sanajärjestys eivät
+        // merkitse), juuri luotu tunnus poistetaan.
+        if (!(await claimName(user.uid, name))) {
             await user.delete();
             alert("This name is already in use by another user. Choose a different name or contact the administrator.");
             return;
-        }
-
-        // Tallenna käyttäjän nimi ja rooli.
-        // Nimen on MUISTUTTAVA tallentua, muuten sitä kysytään myöhemmin
-        // dashboardilta – siksi uusyritys, jos ensimmäinen tallennus epäonnistuu.
-        const userData = { nimi: name, email: email, rooli: "pelaaja" };
-        try {
-            await set(ref(db, `Users/${user.uid}`), userData);
-        } catch (saveError) {
-            console.error("Name save failed, retrying:", saveError);
-            await new Promise(resolve => setTimeout(resolve, 700));
-            try {
-                await set(ref(db, `Users/${user.uid}`), userData);
-            } catch (saveError2) {
-                alert("Your account was created, but the player name could not be saved (" + saveError2.message + "). You will be asked for the name once you open the dashboard.");
-            }
         }
 
         showSuccessAndRedirect();
@@ -122,7 +130,7 @@ window.loginAsVisitor = async function () {
 function showSuccessAndRedirect() {
     const loginContainer = document.getElementById("loginContainer");
     if (loginContainer) loginContainer.classList.add("hidden");
-    
+
     const successMessage = document.getElementById("successMessage");
     if (successMessage) successMessage.classList.remove("hidden");
 
@@ -136,85 +144,10 @@ window.logout = async function() {
     window.location.href = "index.html";
 };
 
-window.changeMyName = async function() {
-    const uusiNimiRaw = prompt("Enter your new player name in the form 'Lastname Firstname':", currentUserData.nimi);
-    if (!uusiNimiRaw) return;
-    
-    const uusiNimi = uusiNimiRaw.trim();
-    const lowerNimi = uusiNimi.toLowerCase();
-    const nimiKey = normalizeNameKey(uusiNimi);
-    if (nimiKey === normalizeNameKey(currentUserData.nimi)) return;
-
-    try {
-        const user = auth.currentUser;
-        if (!user) return;
-
-        // 1. Estä "Kyösti Alaruikka" (case-insensitive) jos sähköposti ei täsmää
-        const isKyosti = lowerNimi === "kyösti alaruikka" || lowerNimi === "alaruikka kyösti";
-        if (isKyosti && user.email !== "kyosti.alaruikka@gmail.com") {
-            alert("This name is reserved for the main administrator.");
-            return;
-        }
-
-        // 2. Tarkista onko nimi jo käytössä TOISELLA käyttäjällä (case-insensitive)
-        const usersSnapshot = await get(ref(db, "Users"));
-        const allUsers = usersSnapshot.val() || {};
-        const nameExists = Object.entries(allUsers).some(([uid, u]) =>
-            uid !== user.uid && u.nimi && normalizeNameKey(u.nimi) === nimiKey
-        );
-
-        if (nameExists) {
-            alert("This name is already in use by another user. Choose a different name or contact the administrator.");
-            return;
-        }
-
-        // 3. Tarkista löytyykö nimi pelaajalistalta TAI ylläpitäjälistalta (case-insensitive)
-        const playersSnapshot = await get(ref(db, "Players"));
-        const playersData = playersSnapshot.val() || {};
-        const adminSnapshot = await get(ref(db, "Config/Admins"));
-        const adminList = adminSnapshot.val() || ["kyöstialaruikka", "lassevimpari"];
-        
-        let foundInList = false;
-        let exactNameFromList = uusiNimi;
-
-        // Tarkista pelaajat
-        Object.values(playersData).forEach(group => {
-            Object.values(group).forEach(p => {
-                if (p && p.nimi && normalizeNameKey(p.nimi) === nimiKey) {
-                    foundInList = true;
-                    exactNameFromList = p.nimi;
-                }
-            });
-        });
-
-        // Tarkista ylläpitäjät (jos ei löytynyt pelaajista)
-        if (!foundInList) {
-            const foundAdmin = adminList.find(a => a.toLowerCase() === lowerNimi.replace(/\s+/g, ''));
-            if (foundAdmin) {
-                foundInList = true;
-                // Ylläpitäjälistalla nimet ovat ilman välilyöntejä, pidetään käyttäjän syöttämä muoto tai korjataan
-                exactNameFromList = uusiNimi; 
-            }
-        }
-
-        if (!foundInList) {
-            alert("The name was not found on the player or administrator list. Make sure you typed the name correctly.");
-            return;
-        }
-
-        // Päivitä nimi
-        await update(ref(db, `Users/${user.uid}`), { nimi: exactNameFromList });
-        alert("Name updated! The page is reloading.");
-        location.reload();
-        
-    } catch (error) {
-        alert("Error updating name: " + error.message);
-    }
-};
-
-// DASHBOARD LOGIC - Päivitetty: 2026-10-13 23:15
+// DASHBOARD LOGIC
 let currentUserData = null;
 let isAdmin = false;
+let noAdminsYet = false;
 
 async function checkUserPermissions() {
     return new Promise((resolve) => {
@@ -226,51 +159,27 @@ async function checkUserPermissions() {
                 } else {
                     const snapshot = await get(ref(db, `Users/${user.uid}`));
                     currentUserData = snapshot.val();
-                    
-                    // Jos nimi puuttuu, odotetaan 1.5s ja yritetään uudelleen (Firebase-viive)
-                    if (!currentUserData || !currentUserData.nimi || currentUserData.nimi === "Tuntematon") {
-                        await new Promise(r => setTimeout(r, 1500));
-                        const snapshot2 = await get(ref(db, `Users/${user.uid}`));
-                        currentUserData = snapshot2.val() || { rooli: "pelaaja", nimi: "Tuntematon" };
-                    }
-                    
-                    // Jos nimi puuttuu tai on "Tuntematon", pyydä asettamaan se
-                    if (!currentUserData.nimi || currentUserData.nimi === "Tuntematon") {
+
+                    // Nimi puuttuu (esim. ylläpitäjä vapautti nimen): pyydä varaamaan nimi.
+                    // Nimeä ei voi itse vaihtaa jälkikäteen – sen korjaa ylläpitäjä.
+                    if (!currentUserData) {
                         const uusiNimi = prompt("Your player name is missing. Enter your name in the form 'Lastname Firstname':");
                         if (uusiNimi && uusiNimi.trim()) {
-                            const ehdokas = uusiNimi.trim();
-                            const ehdokasLower = ehdokas.toLowerCase();
-                            const ehdokasKey = normalizeNameKey(ehdokas);
-
-                            // 1. "Kyösti Alaruikka" on varattu pääylläpitäjälle (sama sääntö kuin nimen vaihdossa)
-                            const ehdokasKyosti = ehdokasLower === "kyösti alaruikka" || ehdokasLower === "alaruikka kyösti";
-                            if (ehdokasKyosti && user.email !== "kyosti.alaruikka@gmail.com") {
-                                alert("This name is reserved for the main administrator. Choose a different name.");
+                            if (await claimName(user.uid, uusiNimi.trim())) {
+                                const snapshot2 = await get(ref(db, `Users/${user.uid}`));
+                                currentUserData = snapshot2.val();
                             } else {
-                                // 2. Estä nimi, joka on jo toisen käytössä (myös päinvastaiset variaatiot)
-                                const usersSnap = await get(ref(db, "Users"));
-                                const nimiVarattu = Object.entries(usersSnap.val() || {}).some(([uid2, u2]) =>
-                                    uid2 !== user.uid && u2 && u2.nimi && normalizeNameKey(u2.nimi) === ehdokasKey
-                                );
-                                if (nimiVarattu) {
-                                    alert("This name is already in use by another user. Choose a different name.");
-                                } else {
-                                    await update(ref(db, `Users/${user.uid}`), { nimi: ehdokas });
-                                    currentUserData.nimi = ehdokas;
-                                }
+                                alert("This name is already in use by another user. Contact the administrator.");
                             }
                         }
-                        // Varmista että nimi ei jää tyhjäksi (muuten admin-tarkistus kaatuu)
-                        if (!currentUserData.nimi) {
-                            currentUserData.nimi = "Tuntematon";
-                        }
+                        if (!currentUserData) currentUserData = { rooli: "pelaaja", nimi: "Unknown" };
                     }
 
-                    // Tarkista admin-oikeus tietokannasta
-                    const adminSnapshot = await get(ref(db, "Config/Admins"));
-                    const admins = adminSnapshot.val() || ["kyöstialaruikka", "lassevimpari"];
-                    const cleanName = currentUserData.nimi.replace(/\s+/g, '').toLowerCase();
-                    isAdmin = admins.includes(cleanName);
+                    // Ylläpito-oikeus on sidottu käyttäjätunnukseen (uid), ei nimeen
+                    const adminSnapshot = await get(ref(db, "Config/AdminUids"));
+                    const adminUids = adminSnapshot.val() || {};
+                    isAdmin = adminUids[user.uid] === true;
+                    noAdminsYet = Object.keys(adminUids).length === 0;
                 }
                 resolve(true);
             } else {
@@ -280,11 +189,44 @@ async function checkUserPermissions() {
     });
 }
 
+// Ottelun tulos solusta rivi -> sarake ("TBD" jos ei pelattu)
+function matchResultFor(groupData, rowIndex, colIndex) {
+  return (groupData.ottelut && groupData.ottelut[`${rowIndex}-${colIndex}`]) || "TBD";
+}
+
+// Ryhmän pelaajat järjestyksessä pelaaja1, pelaaja2, ... Indeksi (idx) vastaa
+// ottelut-avaimen numeroa: pelaajaN <-> N-1.
+function groupPlayers(groupData) {
+  return Object.keys(groupData)
+    .filter(key => /^pelaaja\d+$/.test(key))
+    .map(key => ({ ...groupData[key], id: key, idx: parseInt(key.slice(7)) - 1 }))
+    .sort((a, b) => a.idx - b.idx);
+}
+
+// Pisteet ja sijoitukset lasketaan näytettäessä ottelutuloksista; niitä ei tallenneta.
+function computeStandings(groupData, players) {
+  const points = {};
+  players.forEach(p => {
+    points[p.idx] = 0;
+    players.forEach(o => {
+      if (o.idx === p.idx) return;
+      const result = matchResultFor(groupData, p.idx, o.idx);
+      if (result !== "TBD") points[p.idx] += Number(result.split("-")[0]);
+    });
+  });
+  const ranked = [...players].sort((a, b) => (points[b.idx] - points[a.idx]) || (a.rating - b.rating));
+  const ranks = {};
+  ranked.forEach((p, i) => { ranks[p.idx] = i + 1; });
+  return { points, ranks };
+}
+
+const RESULT_OPTIONS = ["TBD", "3-2", "3-1", "3-0", "0-3", "1-3", "2-3"];
+
 window.fetchAndDisplayGroups = async function () {
   const groupsRef = ref(db, "Players");
   const snapshot = await get(groupsRef);
   const data = snapshot.val();
-  
+
   const container = document.getElementById("groups-container");
   container.innerHTML = "";
 
@@ -297,14 +239,21 @@ window.fetchAndDisplayGroups = async function () {
   logoutBtn.style.marginLeft = "10px";
   container.appendChild(logoutBtn);
 
-  // Lisää nimenmuutosnappi (vain kirjautuneille pelaajille)
+  // Kirjautuneen pelaajan nimi (nimen vaihtaa ylläpitäjä)
   if (currentUserData && currentUserData.rooli !== "vierailija") {
-    const nameBtn = document.createElement("button");
-    nameBtn.textContent = `Change name (${currentUserData.nimi})`;
-    nameBtn.onclick = changeMyName;
-    nameBtn.style.float = "right";
-    nameBtn.style.background = "#3498db";
-    container.appendChild(nameBtn);
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = `Signed in: ${currentUserData.nimi || "Unknown"}`;
+    nameLabel.title = "Contact the administrator to change your name.";
+    nameLabel.style.cssText = "float:right; padding:10px; color:#2c3e50; font-weight:bold;";
+    container.appendChild(nameLabel);
+  }
+
+  // Ensimmäisen ylläpitäjän asetus: näytä oma uid, jonka voi lisätä Firebase Consolessa
+  if (noAdminsYet && auth.currentUser && !auth.currentUser.isAnonymous) {
+    const info = document.createElement("p");
+    info.style.cssText = "clear:both; background:#fff3cd; padding:10px; border-radius:6px;";
+    info.textContent = `No administrators yet. Your user ID is ${auth.currentUser.uid} – add it in the Firebase Console as Config/AdminUids/${auth.currentUser.uid} = true.`;
+    container.appendChild(info);
   }
 
   if (!data) {
@@ -313,7 +262,7 @@ window.fetchAndDisplayGroups = async function () {
     msg.style.textAlign = "center";
     msg.style.marginTop = "50px";
     container.appendChild(msg);
-    
+
     // Jos data on tyhjä, näytä silti admin-napit (jotta voi palauttaa tai generoida)
     if (isAdmin) {
       addButtons();
@@ -321,11 +270,13 @@ window.fetchAndDisplayGroups = async function () {
     return;
   }
 
+  const isVisitor = !currentUserData || currentUserData.rooli === "vierailija";
+  const myKey = isVisitor ? null : currentUserData.nameKey;
+
   Object.keys(data).sort().forEach(groupKey => {
     const groupData = data[groupKey];
-    const players = Object.keys(groupData)
-      .filter(key => key.startsWith("pelaaja"))
-      .map(key => ({ ...groupData[key], id: key }));
+    const players = groupPlayers(groupData);
+    const { points, ranks } = computeStandings(groupData, players);
 
     const groupTitle = document.createElement("h2");
     groupTitle.className = "group-title";
@@ -335,66 +286,58 @@ window.fetchAndDisplayGroups = async function () {
     const table = document.createElement("table");
     const headerRow = document.createElement("tr");
     headerRow.innerHTML = `<th>Name</th>` +
-      players.map(p => `<th>${p.nimi}</th>`).join("") + 
+      players.map(p => `<th>${escapeHtml(p.nimi)}</th>`).join("") +
       `<th>Points</th><th>Position</th><th>Rating</th>`;
     table.appendChild(headerRow);
 
-    players.forEach((player, rowIndex) => {
+    players.forEach(player => {
       const row = document.createElement("tr");
-      
-      row.innerHTML = `<td>${player.nimi}</td>`;
+      const nameCell = document.createElement("td");
+      nameCell.textContent = player.nimi;
+      row.appendChild(nameCell);
 
-      players.forEach((opponent, colIndex) => {
-        if (rowIndex === colIndex) {
-          row.innerHTML += `<td>-</td>`;
-        } else {
-          const matchResult = groupData.ottelut ? groupData.ottelut[`${rowIndex}-${colIndex}`] || "TBD" : "TBD";
-          
-          // Tarkista muokkausoikeus:
-          // 1. Käyttäjä on ylläpitäjä TAI
-          // 2. Käyttäjä on jompikumpi pelaajista (eikä ole vierailija)
-          const isVisitor = currentUserData.rooli === "vierailija";
-          const isMyMatch = !isVisitor && (normalizeNameKey(currentUserData.nimi) === normalizeNameKey(player.nimi) || normalizeNameKey(currentUserData.nimi) === normalizeNameKey(opponent.nimi));
-          const canEdit = isAdmin || isMyMatch;
-
-      // Värit tuloksille (select-laatikon taustaksi):
-      // Voitto: #a5d6a7, Häviö: #ef9a9a
-      let selectStyle = '';
-      let matchStyle = '';
-
-      if (matchResult !== "TBD") {
-          const [a, b] = matchResult.split('-').map(Number);
-          if (a > b) {
-              selectStyle = 'background-color: #a5d6a7;';
-              matchStyle = 'color: #ffffff; font-weight: bold;';
-          } else if (a < b) {
-              selectStyle = 'background-color: #ef9a9a;';
-              matchStyle = 'color: #ffffff; font-weight: bold;';
-          }
-      }
-
-      row.innerHTML += `<td>
-            <select id="result-${groupKey}-${rowIndex}-${colIndex}" 
-                    onchange="updatePoints('${groupKey}', ${rowIndex}, ${colIndex})"
-                    ${!canEdit ? 'disabled' : ''}
-                    style="${selectStyle} ${matchStyle}">
-              <option value="TBD" style="color: black; background-color: white;" ${matchResult === "TBD" ? "selected" : ""}>TBD</option>
-              <option value="3-2" style="color: black; background-color: white;" ${matchResult === "3-2" ? "selected" : ""}>3-2</option>
-              <option value="3-1" style="color: black; background-color: white;" ${matchResult === "3-1" ? "selected" : ""}>3-1</option>
-              <option value="3-0" style="color: black; background-color: white;" ${matchResult === "3-0" ? "selected" : ""}>3-0</option>
-              <option value="0-3" style="color: black; background-color: white;" ${matchResult === "0-3" ? "selected" : ""}>0-3</option>
-              <option value="1-3" style="color: black; background-color: white;" ${matchResult === "1-3" ? "selected" : ""}>1-3</option>
-              <option value="2-3" style="color: black; background-color: white;" ${matchResult === "2-3" ? "selected" : ""}>2-3</option>
-            </select>
-          </td>`;
+      players.forEach(opponent => {
+        const cell = document.createElement("td");
+        row.appendChild(cell);
+        if (player.idx === opponent.idx) {
+          cell.textContent = "-";
+          return;
         }
+        const matchResult = matchResultFor(groupData, player.idx, opponent.idx);
+
+        // Muokkausoikeus: ylläpitäjä tai jompikumpi pelaajista (tietokannan
+        // säännöt tarkistavat saman nimi-indeksin kautta)
+        const isMyMatch = !!myKey && (player.nameKey === myKey || opponent.nameKey === myKey);
+        const canEdit = isAdmin || isMyMatch;
+
+        // Värit tuloksille: voitto #a5d6a7, häviö #ef9a9a
+        const select = document.createElement("select");
+        if (matchResult !== "TBD") {
+          const [a, b] = matchResult.split('-').map(Number);
+          if (a !== b) {
+            select.style.backgroundColor = a > b ? "#a5d6a7" : "#ef9a9a";
+            select.style.color = "#ffffff";
+            select.style.fontWeight = "bold";
+          }
+        }
+        RESULT_OPTIONS.forEach(value => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          option.style.cssText = "color: black; background-color: white;";
+          option.selected = value === matchResult;
+          select.appendChild(option);
+        });
+        select.disabled = !canEdit;
+        select.onchange = () => updatePoints(groupKey, player.idx, opponent.idx, select.value);
+        cell.appendChild(select);
       });
 
       // Määritä sijoituksen väri
       let rankStyle = "background-color: #fff9c4; color: black; font-weight: bold; border-radius: 4px; padding: 2px 8px;";
-      const rank = player.sijoitus;
+      const rank = ranks[player.idx];
       const totalPlayers = players.length;
-      
+
       if (rank === 1) {
         rankStyle = "background-color: #4caf50; color: white; font-weight: bold; border-radius: 4px; padding: 2px 8px;";
       } else if (rank === 2) {
@@ -405,10 +348,10 @@ window.fetchAndDisplayGroups = async function () {
         rankStyle = "background-color: #b71c1c; color: white; font-weight: bold; border-radius: 4px; padding: 2px 8px;"; // Tummanpunainen
       }
 
-      row.innerHTML += `
-        <td id="points-${groupKey}-${rowIndex}" style="text-align: center;">${player.pisteet}</td>
-        <td id="rank-${groupKey}-${rowIndex}" style="text-align: center;"><span style="${rankStyle}">${rank}</span></td>
-        <td style="text-align: center;">${player.rating}</td>`;
+      row.insertAdjacentHTML("beforeend", `
+        <td style="text-align: center;">${points[player.idx]}</td>
+        <td style="text-align: center;"><span style="${rankStyle}">${rank}</span></td>
+        <td style="text-align: center;">${escapeHtml(player.rating)}</td>`);
       table.appendChild(row);
     });
 
@@ -423,76 +366,20 @@ window.fetchAndDisplayGroups = async function () {
   }
 };
 
-// Muut funktiot (updatePoints, recalculateGroupPoints, jne.) pysyvät lähes samoina, 
-// mutta ne on tuotava window-objektiin, jotta ne toimivat HTML:stä.
-
-window.updatePoints = async function (group, rowIndex, colIndex) {
-  const resultInput = document.getElementById(`result-${group}-${rowIndex}-${colIndex}`);
-  const result = resultInput.value;
-  await updateMatchResultWithReverse(group, rowIndex, colIndex, result);
-  await recalculateGroupPoints(group);
-};
-
-async function updateMatchResultWithReverse(group, rowIndex, colIndex, result) {
+// Tallentaa ottelutuloksen molempiin suuntiin. Pisteet ja sijoitukset
+// lasketaan näytettäessä, joten muuta ei kirjoiteta.
+window.updatePoints = async function (group, rowIndex, colIndex, result) {
   const reverseResult = result === "TBD" ? "TBD" : result.split("-").reverse().join("-");
-  await update(ref(db, `Players/${group}/ottelut`), {
-    [`${rowIndex}-${colIndex}`]: result,
-    [`${colIndex}-${rowIndex}`]: reverseResult
-  });
-}
-
-async function recalculateGroupPoints(groupKey) {
-  const groupRef = ref(db, `Players/${groupKey}`);
-  const snapshot = await get(groupRef);
-  const groupData = snapshot.val();
-  if (!groupData) return;
-
-  const players = Object.keys(groupData).filter(key => key.startsWith("pelaaja"));
-  const matches = groupData.ottelut || {};
-  const updates = {};
-
-  players.forEach(playerKey => {
-    const rowIndex = parseInt(playerKey.replace('pelaaja', '')) - 1;
-    let points = 0;
-
-    players.forEach(opponentKey => {
-      const opponentIndex = parseInt(opponentKey.replace('pelaaja', '')) - 1;
-      if (rowIndex === opponentIndex) return;
-
-      const matchKey = `${rowIndex}-${opponentIndex}`;
-      const result = matches[matchKey] || "TBD";
-      
-      if (result !== "TBD") {
-        const [a] = result.split('-').map(Number);
-        points += a;
-      }
+  try {
+    await update(ref(db, `Players/${group}/ottelut`), {
+      [`${rowIndex}-${colIndex}`]: result,
+      [`${colIndex}-${rowIndex}`]: reverseResult
     });
-    updates[`Players/${groupKey}/${playerKey}/pisteet`] = points;
-  });
-
-  await update(ref(db), updates);
-  await updateRankings(groupKey);
+  } catch (error) {
+    alert("Could not save the result: " + error.message);
+  }
   fetchAndDisplayGroups();
-}
-
-async function updateRankings(group) {
-  const playersRef = ref(db, `Players/${group}`);
-  const snapshot = await get(playersRef);
-  const groupData = snapshot.val();
-  if (!groupData) return;
-
-  const players = Object.keys(groupData)
-    .filter(key => key.startsWith("pelaaja"))
-    .map(key => ({ ...groupData[key], key: key }));
-
-  players.sort((a, b) => (b.pisteet - a.pisteet) || (a.rating - b.rating));
-
-  const updates = {};
-  players.forEach((player, index) => {
-    updates[`Players/${group}/${player.key}/sijoitus`] = index + 1;
-  });
-  await update(ref(db), updates);
-}
+};
 
 function addButtons() {
   if (!currentUserData || !isAdmin) {
@@ -523,13 +410,205 @@ function addButtons() {
   printBtn.textContent = "Print group sheets";
   printBtn.onclick = printGroupSheets;
   printBtn.style.background = "#2c3e50";
+  printBtn.style.marginRight = "10px";
+
+  const usersBtn = document.createElement("button");
+  usersBtn.textContent = "Manage users";
+  usersBtn.onclick = openUserManagement;
+  usersBtn.style.background = "#8e44ad";
+  usersBtn.style.marginRight = "10px";
 
   btnDiv.appendChild(updateRatingsBtn);
   btnDiv.appendChild(updateGroupsBtn);
   btnDiv.appendChild(restoreBtn);
   btnDiv.appendChild(printBtn);
+  btnDiv.appendChild(usersBtn);
+
+  const migrateBtn = document.createElement("button");
+  migrateBtn.textContent = "Run data migration";
+  migrateBtn.onclick = runDataMigration;
+  migrateBtn.style.background = "#c0392b";
+  migrateBtn.style.display = "none";
+  btnDiv.appendChild(migrateBtn);
+  // Näytetään vain, jos kertaluontoista siirtoa uuteen tietomalliin ei ole vielä tehty
+  get(ref(db, "Config/MigratedV2")).then(s => {
+    if (s.val() !== true) migrateBtn.style.display = "";
+  });
+
   container.appendChild(btnDiv);
 }
+
+// KÄYTTÄJIEN HALLINTA (YLLÄPITÄJÄ): nimen korjaus, nimen vapautus ja ylläpito-oikeus
+window.openUserManagement = async function () {
+  const [usersSnap, adminSnap] = await Promise.all([
+    get(ref(db, "Users")),
+    get(ref(db, "Config/AdminUids"))
+  ]);
+  const users = usersSnap.val() || {};
+  const adminUids = adminSnap.val() || {};
+
+  const overlay = document.createElement("div");
+  overlay.id = "user-management";
+  overlay.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; overflow-y:auto; padding:16px; box-sizing:border-box;";
+  const panel = document.createElement("div");
+  panel.style.cssText = "background:white; padding:20px; border-radius:8px; max-width:720px; margin:0 auto;";
+  panel.innerHTML = `<h3 style="margin-top:0;">Users</h3>
+    <p style="font-size:0.9em; color:#7f8c8d;">A player can enter results for matches where the group list name matches their own name.
+    "Release" removes the user's name so that they choose it again at their next sign-in.</p>`;
+
+  const table = document.createElement("table");
+  table.innerHTML = "<tr><th>Name</th><th>Admin</th><th></th></tr>";
+  Object.entries(users)
+    .sort(([, a], [, b]) => (a?.nimi || "").localeCompare(b?.nimi || ""))
+    .forEach(([uid, u]) => {
+      const row = document.createElement("tr");
+
+      const nameCell = document.createElement("td");
+      nameCell.textContent = u?.nimi || "(no name)";
+      if (!u?.nameKey) nameCell.textContent += " (not migrated)";
+      row.appendChild(nameCell);
+
+      const adminCell = document.createElement("td");
+      const adminBox = document.createElement("input");
+      adminBox.type = "checkbox";
+      adminBox.checked = adminUids[uid] === true;
+      // Omaa ylläpito-oikeutta ei voi poistaa, ettei kukaan lukitse itseään ulos
+      adminBox.disabled = uid === auth.currentUser.uid;
+      adminBox.onchange = async () => {
+        try {
+          await set(ref(db, `Config/AdminUids/${uid}`), adminBox.checked ? true : null);
+        } catch (e) {
+          alert("Error: " + e.message);
+          adminBox.checked = !adminBox.checked;
+        }
+      };
+      adminCell.appendChild(adminBox);
+      row.appendChild(adminCell);
+
+      const actionCell = document.createElement("td");
+      const renameBtn = document.createElement("button");
+      renameBtn.textContent = "Rename";
+      renameBtn.style.marginRight = "6px";
+      renameBtn.onclick = () => adminRenameUser(uid, u);
+      const releaseBtn = document.createElement("button");
+      releaseBtn.textContent = "Release";
+      releaseBtn.style.background = "#e67e22";
+      releaseBtn.onclick = () => adminReleaseUser(uid, u);
+      actionCell.appendChild(renameBtn);
+      actionCell.appendChild(releaseBtn);
+      row.appendChild(actionCell);
+
+      table.appendChild(row);
+    });
+  panel.appendChild(table);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  closeBtn.style.cssText = "margin-top:15px; background:#95a5a6;";
+  closeBtn.onclick = () => { overlay.remove(); location.reload(); };
+  panel.appendChild(closeBtn);
+
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+};
+
+async function adminRenameUser(uid, u) {
+  const newName = (prompt("New name in the form 'Lastname Firstname':", u?.nimi || "") || "").trim();
+  if (!newName) return;
+  const newKey = nameKeyFor(newName);
+  const taken = await get(ref(db, `NameIndex/${newKey}`));
+  if (taken.exists() && taken.val() !== uid) {
+    alert("This name is already in use by another user.");
+    return;
+  }
+  const updates = {
+    [`Users/${uid}/nimi`]: newName,
+    [`Users/${uid}/nameKey`]: newKey,
+    [`NameIndex/${newKey}`]: uid
+  };
+  if (u?.nameKey && u.nameKey !== newKey) updates[`NameIndex/${u.nameKey}`] = null;
+  try {
+    await update(ref(db), updates);
+    document.getElementById("user-management").remove();
+    openUserManagement();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+async function adminReleaseUser(uid, u) {
+  if (uid === auth.currentUser.uid) {
+    alert("You cannot release your own name.");
+    return;
+  }
+  if (!confirm(`Release the name "${u?.nimi || ""}"? The user will be asked for a name at the next sign-in.`)) return;
+  const updates = { [`Users/${uid}`]: null };
+  if (u?.nameKey) updates[`NameIndex/${u.nameKey}`] = null;
+  try {
+    await update(ref(db), updates);
+    document.getElementById("user-management").remove();
+    openUserManagement();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+// KERTALUONTOINEN SIIRTO UUTEEN TIETOMALLIIN (ylläpitäjä ajaa kerran julkaisun jälkeen):
+// - käyttäjille nimiavain ja NameIndex, email-kenttä pois
+// - ryhmien pelaajille nimiavain, vanhat pisteet/sijoitukset pois
+// - vanhat nimipohjaiset ylläpitäjät (Config/Admins) uid-pohjaisiksi
+window.runDataMigration = async function () {
+  if (!confirm("Run the one-time data migration now?")) return;
+  try {
+    const [usersSnap, playersSnap, adminsSnap, indexSnap] = await Promise.all([
+      get(ref(db, "Users")), get(ref(db, "Players")),
+      get(ref(db, "Config/Admins")), get(ref(db, "NameIndex"))
+    ]);
+    const users = usersSnap.val() || {};
+    const index = indexSnap.val() || {};
+    const oldAdmins = Object.values(adminsSnap.val() || {}).map(a => String(a).toLowerCase());
+    const updates = {};
+    const conflicts = [];
+
+    Object.entries(users).forEach(([uid, u]) => {
+      if (!u) return;
+      updates[`Users/${uid}/email`] = null;
+      if (u.nimi && !u.nameKey) {
+        const key = nameKeyFor(u.nimi);
+        if (index[key] && index[key] !== uid) {
+          conflicts.push(u.nimi);
+          return;
+        }
+        index[key] = uid;
+        updates[`Users/${uid}/nameKey`] = key;
+        updates[`NameIndex/${key}`] = uid;
+      }
+      // Vanha ylläpitäjälista oli nimiä ilman välilyöntejä, esim. "kyöstialaruikka"
+      const compact = (u.nimi || "").replace(/\s+/g, "").toLowerCase();
+      const reversed = (u.nimi || "").trim().split(/\s+/).reverse().join("").toLowerCase();
+      if (oldAdmins.includes(compact) || oldAdmins.includes(reversed)) {
+        updates[`Config/AdminUids/${uid}`] = true;
+      }
+    });
+
+    Object.entries(playersSnap.val() || {}).forEach(([g, group]) => {
+      Object.entries(group || {}).forEach(([p, player]) => {
+        if (!/^pelaaja\d+$/.test(p) || !player) return;
+        updates[`Players/${g}/${p}/nameKey`] = nameKeyFor(player.nimi);
+        updates[`Players/${g}/${p}/pisteet`] = null;
+        updates[`Players/${g}/${p}/sijoitus`] = null;
+      });
+    });
+
+    updates["Config/Admins"] = null;
+    updates["Config/MigratedV2"] = true;
+    await update(ref(db), updates);
+    alert("Migration completed." + (conflicts.length ? `\nDuplicate names, fix these in "Manage users": ${conflicts.join(", ")}` : ""));
+    location.reload();
+  } catch (e) {
+    alert("Migration error: " + e.message);
+  }
+};
 
 window.printGroupSheets = async function() {
   const groupsRef = ref(db, "Players");
@@ -655,7 +734,7 @@ window.printGroupSheets = async function() {
         <table class="player-table">
           <thead>
             <tr>
-              <th>GROUP ${groupLetter}</th>
+              <th>GROUP ${escapeHtml(groupLetter)}</th>
               <th>NAME</th>
               <th>RATING</th>
             </tr>
@@ -664,8 +743,8 @@ window.printGroupSheets = async function() {
             ${players.map((p, i) => `
               <tr>
                 <td>${i + 1}</td>
-                <td>${p.nimi}</td>
-                <td>${p.rating}</td>
+                <td>${escapeHtml(p.nimi)}</td>
+                <td>${escapeHtml(p.rating)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -718,6 +797,39 @@ window.printGroupSheets = async function() {
   }, 1000);
 };
 
+// Muokkaustilan pelaajarivi (nimi lisätään tekstinä, ei HTML:nä)
+function createEditListItem(name, rating) {
+  const li = document.createElement("li");
+  li.setAttribute("data-name", name);
+  li.setAttribute("data-rating", rating);
+  li.style.cssText = "background:white; margin:5px 0; padding:10px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.1); cursor:move; display:flex; justify-content:space-between;";
+  li.innerHTML = `
+    <span class="edit-name"></span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="color:#7f8c8d; font-size:0.8em;">${escapeHtml(rating)}</span>
+      <button onclick="this.closest('li').remove()" style="background:none; color:#e74c3c; padding:0; border:none; cursor:pointer;">❌</button>
+    </div>
+  `;
+  li.querySelector(".edit-name").textContent = name;
+  return li;
+}
+
+// Muokkaustilan ryhmälaatikko
+function createEditGroup(groupKey) {
+  const groupDiv = document.createElement("div");
+  groupDiv.style.cssText = "flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px dashed #bdc3c7;";
+  const title = document.createElement("h3");
+  title.style.cssText = "margin-top:0; color:#2c3e50;";
+  title.textContent = groupKey.replace("Ryhmä", "Group");
+  const list = document.createElement("ul");
+  list.id = `list-${groupKey}`;
+  list.className = "drag-list";
+  list.style.cssText = "list-style:none; padding:0; min-height:100px;";
+  groupDiv.appendChild(title);
+  groupDiv.appendChild(list);
+  return { groupDiv, list };
+}
+
 // UUDEN PELAAJAN LISÄYS MUOKKAUSTILASSA
 window.addPlayerToEditMode = async function() {
   const nameInput = document.getElementById("new-player-name");
@@ -742,30 +854,20 @@ window.addPlayerToEditMode = async function() {
   // Etsi viimeinen ryhmä
   const lists = document.querySelectorAll(".drag-list");
   const lastList = lists[lists.length - 1];
-  
+
   if (lastList) {
-    const li = document.createElement("li");
-    li.setAttribute("data-name", name);
-    li.setAttribute("data-rating", rating);
-    li.style.cssText = "background:white; margin:5px 0; padding:10px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.1); cursor:move; display:flex; justify-content:space-between;";
-    li.innerHTML = `
-      <span>${name}</span>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="color:#7f8c8d; font-size:0.8em;">${rating}</span>
-        <button onclick="this.closest('li').remove()" style="background:none; color:#e74c3c; padding:0; border:none; cursor:pointer;">❌</button>
-      </div>
-    `;
+    const li = createEditListItem(name, rating);
 
     // Lisää oikeaan väliin ratingin mukaan (laskeva järjestys)
     const existingItems = Array.from(lastList.querySelectorAll("li"));
     const insertBefore = existingItems.find(item => parseInt(item.getAttribute("data-rating")) < rating);
-    
+
     if (insertBefore) {
       lastList.insertBefore(li, insertBefore);
     } else {
       lastList.appendChild(li);
     }
-    
+
     nameInput.value = "";
   }
 };
@@ -774,81 +876,17 @@ window.addPlayerToEditMode = async function() {
 window.addNewGroupToEditMode = function() {
   const currentGroups = document.querySelectorAll(".drag-list").length;
   const nextLetter = String.fromCharCode(65 + currentGroups); // A, B, C...
-  const groupKey = `Ryhmä ${nextLetter}`;
-  
-  const container = document.getElementById("edit-lists-container");
-  const groupDiv = document.createElement("div");
-  groupDiv.style.cssText = "flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px dashed #bdc3c7;";
-  
-  groupDiv.innerHTML = `<h3 style="margin-top:0; color:#2c3e50;">${groupKey.replace("Ryhmä", "Group")}</h3>
-    <ul id="list-${groupKey}" class="drag-list" style="list-style:none; padding:0; min-height:100px;"></ul>`;
-  
-  container.appendChild(groupDiv);
+  const { groupDiv, list } = createEditGroup(`Ryhmä ${nextLetter}`);
+  document.getElementById("edit-lists-container").appendChild(groupDiv);
 
-  new Sortable(document.getElementById(`list-${groupKey}`), {
+  new Sortable(list, {
     group: 'shared-groups',
     animation: 150,
     ghostClass: 'blue-background-class'
   });
 };
 
-// YLLÄPITÄJIEN LISÄYS MUOKKAUSTILASSA
-window.addAdminToEditMode = function() {
-  const input = document.getElementById("new-admin-name");
-  const name = input.value.trim().toLowerCase().replace(/\s+/g, '');
-  if (!name) return;
-
-  const list = document.getElementById("admin-list");
-  // Tarkista onko jo listalla
-  if (list.querySelector(`li[data-admin="${name}"]`)) {
-    alert("This administrator is already on the list.");
-    return;
-  }
-
-  const li = document.createElement("li");
-  li.setAttribute("data-admin", name);
-  li.style.cssText = "background:white; padding:5px 12px; border-radius:20px; border:1px solid #3498db; display:flex; align-items:center; gap:8px;";
-  li.innerHTML = `${name} <button onclick="this.closest('li').remove()" style="background:none; color:#e74c3c; padding:0; border:none; cursor:pointer; font-weight:bold;">×</button>`;
-  list.appendChild(li);
-  input.value = "";
-};
-
 // VARMUUSKOPIOINTI JA PALAUTUS
-const initialData = {
-  "Ryhmä A": {
-    "pelaaja1": { "nimi": "Ågren Pekka", "rating": 2207, "pisteet": 0, "sijoitus": 1 },
-    "pelaaja2": { "nimi": "Slesar Tomas", "rating": 2143, "pisteet": 0, "sijoitus": 2 },
-    "pelaaja3": { "nimi": "Debazac Florent", "rating": 2042, "pisteet": 0, "sijoitus": 3 },
-    "pelaaja4": { "nimi": "Seppälä Marko", "rating": 1851, "pisteet": 0, "sijoitus": 4 },
-    "pelaaja5": { "nimi": "Vimpari Lasse", "rating": 1833, "pisteet": 0, "sijoitus": 5 },
-    "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
-  },
-  "Ryhmä B": {
-    "pelaaja1": { "nimi": "Niemelä Konsta", "rating": 1916, "pisteet": 0, "sijoitus": 1 },
-    "pelaaja2": { "nimi": "Koponen Saku", "rating": 1746, "pisteet": 0, "sijoitus": 2 },
-    "pelaaja3": { "nimi": "Vuoste Hannu", "rating": 1701, "pisteet": 0, "sijoitus": 3 },
-    "pelaaja4": { "nimi": "Halavaara Kari", "rating": 1561, "pisteet": 0, "sijoitus": 4 },
-    "pelaaja5": { "nimi": "Trofimov Vitali", "rating": 1339, "pisteet": 0, "sijoitus": 5 },
-    "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
-  },
-  "Ryhmä C": {
-    "pelaaja1": { "nimi": "Honkavaara Oskari", "rating": 1561, "pisteet": 0, "sijoitus": 1 },
-    "pelaaja2": { "nimi": "Zhu Ning", "rating": 1428, "pisteet": 0, "sijoitus": 2 },
-    "pelaaja3": { "nimi": "Salminen Jukka-Pekka", "rating": 1349, "pisteet": 0, "sijoitus": 3 },
-    "pelaaja4": { "nimi": "Tuuttila Tapio", "rating": 1295, "pisteet": 0, "sijoitus": 4 },
-    "pelaaja5": { "nimi": "Mikkola Pekka", "rating": 1273, "pisteet": 0, "sijoitus": 5 },
-    "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
-  },
-  "Ryhmä D": {
-    "pelaaja1": { "nimi": "Trofimov Dennis", "rating": 1335, "pisteet": 0, "sijoitus": 1 },
-    "pelaaja2": { "nimi": "Hiltunen Teijo", "rating": 1200, "pisteet": 0, "sijoitus": 2 },
-    "pelaaja3": { "nimi": "Sammalneva Virpi", "rating": 1195, "pisteet": 0, "sijoitus": 3 },
-    "pelaaja4": { "nimi": "Kääriäinen Juha", "rating": 925, "pisteet": 0, "sijoitus": 4 },
-    "pelaaja5": { "nimi": "Montin Aapo", "rating": 900, "pisteet": 0, "sijoitus": 5 },
-    "ottelut": { "0-1": "TBD", "0-2": "TBD", "0-3": "TBD", "0-4": "TBD", "1-0": "TBD", "1-2": "TBD", "1-3": "TBD", "1-4": "TBD", "2-0": "TBD", "2-1": "TBD", "2-3": "TBD", "2-4": "TBD", "3-0": "TBD", "3-1": "TBD", "3-2": "TBD", "3-4": "TBD", "4-0": "TBD", "4-1": "TBD", "4-2": "TBD", "4-3": "TBD" }
-  }
-};
-
 async function backupCurrentGroups() {
   const snapshot = await get(ref(db, "Players"));
   const data = snapshot.val();
@@ -865,8 +903,8 @@ window.restoreBackup = async function() {
     let data = snapshot.val();
     
     if (!data) {
-      console.log("No backup found, using the original data.");
-      data = initialData;
+      alert("No backup found.");
+      return;
     }
     
     await set(ref(db, "Players"), data);
@@ -1082,52 +1120,14 @@ window.updateGroups = async function () {
 async function renderEditGroups(groups) {
   const container = document.getElementById("edit-lists-container");
   container.innerHTML = "";
-  
-  // Lisää ylläpitäjien hallintaosio
-  const adminSnapshot = await get(ref(db, "Config/Admins"));
-  const currentAdmins = adminSnapshot.val() || ["kyöstialaruikka", "lassevimpari"];
-  
-  const adminSection = document.createElement("div");
-  adminSection.style.cssText = "width: 100%; background: #ecf0f1; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #bdc3c7;";
-  adminSection.innerHTML = `
-    <h3 style="margin-top:0;">Administrator management</h3>
-    <p style="font-size:0.9em; color:#7f8c8d;">Add new administrators by typing their name (lowercase, without spaces).</p>
-    <div style="display:flex; gap:10px; margin-bottom:15px;">
-      <input type="text" id="new-admin-name" placeholder="e.g. john-doe" style="padding:8px; border-radius:4px; border:1px solid #ccc; flex:1;">
-      <button onclick="addAdminToEditMode()" style="background:#3498db;">Add administrator</button>
-    </div>
-    <ul id="admin-list" style="list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:10px;">
-      ${currentAdmins.map(admin => `
-        <li data-admin="${admin}" style="background:white; padding:5px 12px; border-radius:20px; border:1px solid #3498db; display:flex; align-items:center; gap:8px;">
-          ${admin}
-          ${admin !== 'kyöstialaruikka' ? `<button onclick="this.closest('li').remove()" style="background:none; color:#e74c3c; padding:0; border:none; cursor:pointer; font-weight:bold;">×</button>` : ''}
-        </li>
-      `).join("")}
-    </ul>
-  `;
-  container.appendChild(adminSection);
 
   groups.forEach(group => {
-    const groupDiv = document.createElement("div");
-    groupDiv.style.cssText = "flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px dashed #bdc3c7;";
-    
-    groupDiv.innerHTML = `<h3 style="margin-top:0; color:#2c3e50;">${group.key.replace("Ryhmä", "Group")}</h3>
-      <ul id="list-${group.key}" class="drag-list" style="list-style:none; padding:0; min-height:100px;">
-        ${group.players.map(p => `
-          <li data-name="${p.nimi}" data-rating="${p.rating}" style="background:white; margin:5px 0; padding:10px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.1); cursor:move; display:flex; justify-content:space-between;">
-            <span>${p.nimi}</span>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="color:#7f8c8d; font-size:0.8em;">${p.rating}</span>
-              <button onclick="this.closest('li').remove()" style="background:none; color:#e74c3c; padding:0; border:none; cursor:pointer;">❌</button>
-            </div>
-          </li>
-        `).join("")}
-      </ul>`;
-    
+    const { groupDiv, list } = createEditGroup(group.key);
+    group.players.forEach(p => list.appendChild(createEditListItem(p.nimi, p.rating)));
     container.appendChild(groupDiv);
 
     // Alusta SortableJS tälle listalle
-    new Sortable(document.getElementById(`list-${group.key}`), {
+    new Sortable(list, {
       group: 'shared-groups',
       animation: 150,
       ghostClass: 'blue-background-class'
@@ -1150,32 +1150,23 @@ window.saveFinalGroups = async function() {
 
   try {
     await backupCurrentGroups(); // Ota varmuuskopio ennen tallennusta
-    
-    // Tallenna ylläpitäjät
-    const adminList = document.getElementById("admin-list");
-    if (adminList) {
-      const newAdmins = Array.from(adminList.querySelectorAll("li")).map(li => li.getAttribute("data-admin"));
-      if (newAdmins.length > 0) {
-        await set(ref(db, "Config/Admins"), newAdmins);
-      }
-    }
 
     const newGroupsData = {};
     const lists = document.querySelectorAll(".drag-list");
-    
+
     lists.forEach(list => {
       const groupKey = list.id.replace("list-", "");
       const playerItems = list.querySelectorAll("li");
-      
+
       if (playerItems.length === 0) return; // Automaattinen tyhjän ryhmän poisto
 
       const players = {};
       playerItems.forEach((li, index) => {
+        const nimi = li.getAttribute("data-name");
         players[`pelaaja${index + 1}`] = {
-          nimi: li.getAttribute("data-name"),
-          rating: parseInt(li.getAttribute("data-rating")),
-          pisteet: 0,
-          sijoitus: index + 1
+          nimi,
+          nameKey: nameKeyFor(nimi),
+          rating: parseInt(li.getAttribute("data-rating")) || 0
         };
       });
 
