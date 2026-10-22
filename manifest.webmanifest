@@ -1,0 +1,16 @@
+{
+  "name": "OPT-86 eläkekisat",
+  "short_name": "OPT-86 eläke",
+  "description": "Oulun Pöytätennis -86 eläkekisat: groups, results and ratings",
+  "lang": "fi",
+  "start_url": "/dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2c3e50",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
