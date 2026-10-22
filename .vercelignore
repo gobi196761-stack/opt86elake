@@ -1,3 +1,4 @@
 dev-server.mjs
 .env.local
 tools/
+database.rules.json

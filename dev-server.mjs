@@ -19,7 +19,7 @@ if (fs.existsSync(envFile)) {
 const types = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
-  ".css": "text/css; charset=utf-8", ".png": "image/png", ".ico": "image/x-icon",
+  ".css": "text/css; charset=utf-8", ".png": "image/png", ".webmanifest": "application/manifest+json", ".ico": "image/x-icon",
 };
 
 http.createServer(async (req, res) => {
