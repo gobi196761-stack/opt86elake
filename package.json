@@ -1,0 +1,19 @@
+{
+  "name": "opt86elake",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "rules": "node tools/build-rules.mjs",
+    "test": "node --test tests/chat-logic.test.mjs tests/chat-api.test.mjs tests/rating.test.mjs",
+    "test:rules": "npx -y firebase-tools@15.34.1 emulators:exec --only database --project demo-opt86 \"node --test tests/rules.test.mjs\"",
+    "emulators": "npx -y firebase-tools@15.34.1 emulators:start --only auth,database --project opt86elake"
+  },
+  "dependencies": {
+    "firebase-admin": "13.10.0",
+    "web-push": "3.6.7"
+  }
+}

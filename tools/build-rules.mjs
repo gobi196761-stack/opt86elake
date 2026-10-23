@@ -24,6 +24,16 @@ for (let i = 0; i < MAX_PLAYERS; i++) {
   );
 }
 
+// Ryhmächatti (Chats/{kuukausi}/{ryhmä}/{viesti}): ryhmän jäsen on käyttäjä, jonka
+// nimiavain on ryhmän jollakin pelaajapaikalla ja osoittaa NameIndexissä hänen uid:hen.
+const memberClauses = [];
+for (let i = 0; i < MAX_PLAYERS; i++) {
+  const keyPath = `root.child('Players/' + $group + '/pelaaja${i + 1}/nameKey')`;
+  memberClauses.push(`(${keyPath}.isString() && root.child('NameIndex/' + ${keyPath}.val()).val() === auth.uid)`);
+}
+const isMember = `(${memberClauses.join(" || ")})`;
+const MAX_MESSAGE_LENGTH = 500;
+
 const rules = {
   rules: {
     ".read": false,
@@ -80,6 +90,43 @@ const rules = {
     Backup: {
       ".read": isAdmin,
       ".write": isAdmin
+    },
+    Chats: {
+      // Ylläpitäjä näkee kaikki ja voi poistaa vanhat kuukaudet (myös Vercel Cron poistaa ne)
+      ".read": isAdmin,
+      ".write": isAdmin,
+      $month: {
+        ".validate": "$month.matches(/^[0-9]{4}-[0-9]{2}$/)",
+        $group: {
+          ".read": `${signedIn} && ${isMember}`,
+          $msg: {
+            // Jäsen lisää uuden viestin tai poistaa oman viestinsä; muokkausta ei ole
+            ".write": `${signedIn} && ${isMember} && ((!data.exists() && newData.exists()) || ` +
+              "(data.exists() && !newData.exists() && data.child('uid').val() === auth.uid))",
+            ".validate": "newData.hasChildren(['uid', 'nimi', 'teksti', 'aika'])",
+            uid: { ".validate": "newData.val() === auth.uid" },
+            nimi: { ".validate": "newData.isString() && newData.val() === root.child('Users/' + auth.uid + '/nimi').val()" },
+            teksti: { ".validate": `newData.isString() && newData.val().length >= 1 && newData.val().length <= ${MAX_MESSAGE_LENGTH}` },
+            aika: { ".validate": "newData.val() === now" },
+            $other: { ".validate": false }
+          }
+        }
+      }
+    },
+    PushSubs: {
+      // Laitteen push-tilaus: käyttäjä hallitsee vain omiaan, palvelin lukee Admin SDK:lla
+      $uid: {
+        ".read": `${signedIn} && auth.uid === $uid`,
+        ".write": `${signedIn} && auth.uid === $uid`,
+        $sub: {
+          ".validate": "newData.hasChildren(['endpoint', 'p256dh', 'auth'])",
+          endpoint: { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 1000" },
+          p256dh: { ".validate": "newData.isString() && newData.val().length <= 200" },
+          auth: { ".validate": "newData.isString() && newData.val().length <= 100" },
+          luotu: { ".validate": "newData.val() === now" },
+          $other: { ".validate": false }
+        }
+      }
     }
   }
 };

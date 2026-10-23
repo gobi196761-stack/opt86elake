@@ -55,6 +55,59 @@
     "Backup": {
       ".read": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
       ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true"
+    },
+    "Chats": {
+      ".read": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('Config/AdminUids/' + auth.uid).val() === true",
+      "$month": {
+        ".validate": "$month.matches(/^[0-9]{4}-[0-9]{2}$/)",
+        "$group": {
+          ".read": "auth != null && auth.provider !== 'anonymous' && ((root.child('Players/' + $group + '/pelaaja1/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja1/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja2/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja2/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja3/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja3/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja4/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja4/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja5/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja5/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja6/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja6/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja7/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja7/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja8/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja8/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja9/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja9/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja10/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja10/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja11/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja11/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja12/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja12/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja13/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja13/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja14/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja14/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja15/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja15/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja16/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja16/nameKey').val()).val() === auth.uid))",
+          "$msg": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && ((root.child('Players/' + $group + '/pelaaja1/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja1/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja2/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja2/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja3/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja3/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja4/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja4/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja5/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja5/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja6/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja6/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja7/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja7/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja8/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja8/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja9/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja9/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja10/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja10/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja11/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja11/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja12/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja12/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja13/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja13/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja14/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja14/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja15/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja15/nameKey').val()).val() === auth.uid) || (root.child('Players/' + $group + '/pelaaja16/nameKey').isString() && root.child('NameIndex/' + root.child('Players/' + $group + '/pelaaja16/nameKey').val()).val() === auth.uid)) && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && data.child('uid').val() === auth.uid))",
+            ".validate": "newData.hasChildren(['uid', 'nimi', 'teksti', 'aika'])",
+            "uid": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "nimi": {
+              ".validate": "newData.isString() && newData.val() === root.child('Users/' + auth.uid + '/nimi').val()"
+            },
+            "teksti": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500"
+            },
+            "aika": {
+              ".validate": "newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+    "PushSubs": {
+      "$uid": {
+        ".read": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid",
+        "$sub": {
+          ".validate": "newData.hasChildren(['endpoint', 'p256dh', 'auth'])",
+          "endpoint": {
+            ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 1000"
+          },
+          "p256dh": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "auth": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "luotu": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

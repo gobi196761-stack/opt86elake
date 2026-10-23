@@ -200,6 +200,156 @@
         width: 100%;
       }
     }
+    /* ===== Ryhmächatti ===== */
+    .chat-btn {
+      background: #16a085;
+      margin: -8px 0 4px 0;
+    }
+    .chat-btn:hover {
+      background: #12876f;
+    }
+    .chat-btn.unread {
+      background: #e67e22;
+      font-weight: bold;
+    }
+    /* Laskennallinen rating-muutos ratingin alla (ryhmän pelatut ottelut) */
+    .rating-change {
+      font-size: 0.8em;
+      font-weight: bold;
+      color: #7f8c8d;
+      cursor: help;
+    }
+    .rating-change.up {
+      color: #2e7d32;
+    }
+    .rating-change.down {
+      color: #c62828;
+    }
+    .rating-note {
+      color: #7f8c8d;
+      font-size: 0.85em;
+    }
+    /* Ottelusolun ehdotusnappi (oma pelaamaton ottelu) */
+    #groups-container button.propose-btn {
+      background: #16a085;
+      padding: 0 8px;
+      margin: 0 0 0 4px;
+      min-height: 44px;
+      vertical-align: middle;
+    }
+    #chat-panel {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .chat-box {
+      background: #fff;
+      width: 100%;
+      max-width: 640px;
+      height: min(720px, 100%);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #2c3e50;
+      color: #fff;
+    }
+    .chat-header h2 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.2em;
+    }
+    .chat-header button {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 6px 12px;
+    }
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      background: #f5f7fa;
+    }
+    .chat-empty {
+      color: #7f8c8d;
+      text-align: center;
+      margin-top: 40px;
+    }
+    .chat-msg {
+      background: #fff;
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin: 0 40px 10px 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .chat-msg.own {
+      background: #d6eaf8;
+      margin: 0 0 10px 40px;
+    }
+    .chat-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8em;
+      color: #7f8c8d;
+      margin-bottom: 2px;
+    }
+    .chat-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    button.chat-delete {
+      margin-left: auto;
+      background: none;
+      color: #95a5a6;
+      padding: 0 6px;
+      min-height: 0;
+    }
+    button.chat-delete:hover {
+      background: none;
+      color: #c0392b;
+    }
+    .chat-compose {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid #ecf0f1;
+    }
+    .chat-compose select {
+      flex: 1 1 100%;
+    }
+    .chat-compose textarea {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      font-size: 16px;
+      padding: 8px;
+      border: 1px solid #bdc3c7;
+      border-radius: 6px;
+      resize: vertical;
+    }
+    @media (max-width: 768px) {
+      #chat-panel {
+        padding: 0;
+      }
+      .chat-box {
+        height: 100%;
+        max-width: none;
+        border-radius: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -224,6 +374,23 @@
       <div class="edit-footer" style="display: flex; gap: 15px; justify-content: flex-end;">
         <button onclick="cancelGroupEdit()" style="background: #95a5a6;">Cancel</button>
         <button onclick="saveFinalGroups()" style="background: #27ae60;">Confirm and save new groups</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ryhmän chat (chat.js) -->
+  <div id="chat-panel" class="hidden" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+    <div class="chat-box">
+      <div class="chat-header">
+        <h2 id="chat-title">Chat</h2>
+        <button type="button" id="chat-notify-btn" class="hidden">🔕 Notifications off</button>
+        <button type="button" id="chat-close" aria-label="Close chat">✕</button>
+      </div>
+      <div id="chat-messages" aria-live="polite"></div>
+      <div class="chat-compose">
+        <select id="chat-propose" aria-label="Propose a match time"></select>
+        <textarea id="chat-input" rows="2" placeholder="Write a message (Ctrl+Enter sends)" aria-label="Message"></textarea>
+        <button type="button" id="chat-send">Send</button>
       </div>
     </div>
   </div>
