@@ -1,6 +1,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getDatabase, ref, get, set, update } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { getDatabase, ref, get, set, update, connectDatabaseEmulator } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut, sendPasswordResetEmail, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { initChat, chatButton, setGroups, openChatFromUrl, chatBeforeLogout, proposeMatch } from './chat.js';
+import { ratingChange, formatChange } from './lib/rating.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCx-WWULj2y8-ZfY7zKq-fCAkELwwP0-Ak",
@@ -15,6 +17,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
+
+// Paikallinen testaus Firebase-emulaattoreilla (npm run emulators): vain osoitteessa
+// 127.0.0.1, kun sivu on avattu kerran parametrilla ?emulator=1. Ei vaikuta julkaistuun sivustoon.
+if (location.hostname === "127.0.0.1") {
+    if (new URLSearchParams(location.search).has("emulator")) localStorage.setItem("useEmulators", "1");
+    if (localStorage.getItem("useEmulators") === "1") {
+        connectDatabaseEmulator(db, "127.0.0.1", 9000);
+        connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    }
+}
 
 // Nimen vertailuavain: pienet kirjaimet, ylimääräiset välilyönnit pois ja
 // sanat aakkosjärjestykseen -> "Lasse Vimpari" ja "Vimpari Lasse" = sama nimi.
@@ -140,6 +152,7 @@ function showSuccessAndRedirect() {
 }
 
 window.logout = async function() {
+    await chatBeforeLogout();
     await signOut(auth);
     window.location.href = "index.html";
 };
@@ -272,6 +285,7 @@ window.fetchAndDisplayGroups = async function () {
 
   const isVisitor = !currentUserData || currentUserData.rooli === "vierailija";
   const myKey = isVisitor ? null : currentUserData.nameKey;
+  setGroups(data);
 
   Object.keys(data).sort().forEach(groupKey => {
     const groupData = data[groupKey];
@@ -282,6 +296,10 @@ window.fetchAndDisplayGroups = async function () {
     groupTitle.className = "group-title";
     groupTitle.textContent = groupKey.replace("Ryhmä", "Group");
     container.appendChild(groupTitle);
+
+    // Ryhmän oma chat pelien sopimiseen (vain ryhmän pelaajille ja ylläpitäjille)
+    const chatBtn = chatButton(groupKey, groupData);
+    if (chatBtn) container.appendChild(chatBtn);
 
     const table = document.createElement("table");
     const headerRow = document.createElement("tr");
@@ -331,6 +349,18 @@ window.fetchAndDisplayGroups = async function () {
         select.disabled = !canEdit;
         select.onchange = () => updatePoints(groupKey, player.idx, opponent.idx, select.value);
         cell.appendChild(select);
+
+        // Oma pelaamaton ottelu: 💬 ehdottaa peliaikaa ryhmän chatissa (vain omalla rivillä)
+        if (matchResult === "TBD" && player.nameKey === myKey) {
+          const proposeBtn = document.createElement("button");
+          proposeBtn.type = "button";
+          proposeBtn.className = "propose-btn";
+          proposeBtn.textContent = "💬";
+          proposeBtn.title = `Propose a match time to ${opponent.nimi}`;
+          proposeBtn.setAttribute("aria-label", proposeBtn.title);
+          proposeBtn.onclick = () => proposeMatch(groupKey, opponent.nimi);
+          cell.appendChild(proposeBtn);
+        }
       });
 
       // Määritä sijoituksen väri
@@ -351,7 +381,7 @@ window.fetchAndDisplayGroups = async function () {
       row.insertAdjacentHTML("beforeend", `
         <td style="text-align: center;">${points[player.idx]}</td>
         <td style="text-align: center;"><span style="${rankStyle}">${rank}</span></td>
-        <td style="text-align: center;">${escapeHtml(player.rating)}</td>`);
+        <td style="text-align: center;">${escapeHtml(player.rating)}${ratingChangeHtml(player, players, groupData.ottelut)}</td>`);
       table.appendChild(row);
     });
 
@@ -361,10 +391,32 @@ window.fetchAndDisplayGroups = async function () {
     container.appendChild(tableScroll);
   });
 
+  const ratingNote = document.createElement("p");
+  ratingNote.className = "rating-note";
+  ratingNote.textContent = "The number under a rating is the estimated rating change from this month's group matches " +
+    "(SPTL rating formula, +1 bonus point per win). Official ratings are calculated by SPTL.";
+  container.appendChild(ratingNote);
+
   if (isAdmin) {
     addButtons();
   }
 };
+
+// Laskennallinen rating-muutos ryhmän pelatuista otteluista (SPTL:n kaavat, lib/rating.js)
+// varsinaisen ratingin alle; ei tallenneta eikä muuta varsinaista ratingia.
+function ratingChangeHtml(player, players, ottelut) {
+  const change = ratingChange(player, players, ottelut);
+  if (!change) return "";
+  if (!change.matches) {
+    return `<div class="rating-change" title="No rating for this player or the opponents – change cannot be calculated">?</div>`;
+  }
+  const cls = Math.round(change.total) > 0 ? "up" : Math.round(change.total) < 0 ? "down" : "";
+  const title = `Estimated rating change from ${change.matches} group match${change.matches === 1 ? "" : "es"} ` +
+    `(${change.wins} W, ${change.losses} L): ${change.base >= 0 ? "+" : ""}${change.base.toFixed(1)} rating` +
+    ` + ${change.bonus} bonus. SPTL formula; the official rating is calculated by SPTL.` +
+    (change.skipped ? ` ${change.skipped} match(es) without a rating not counted.` : "");
+  return `<div class="rating-change ${cls}" title="${escapeHtml(title)}">${formatChange(change.total)}</div>`;
+}
 
 // Tallentaa ottelutuloksen molempiin suuntiin. Pisteet ja sijoitukset
 // lasketaan näytettäessä, joten muuta ei kirjoiteta.
@@ -1216,7 +1268,9 @@ window.onload = async function () {
     if (!authed) {
       window.location.href = "index.html";
     } else {
-      fetchAndDisplayGroups();
+      initChat({ db, auth, user: () => currentUserData, isAdmin: () => isAdmin });
+      await fetchAndDisplayGroups();
+      openChatFromUrl();   // ilmoituksen linkki: dashboard.html?chat=<ryhmä>
     }
   }
 };
