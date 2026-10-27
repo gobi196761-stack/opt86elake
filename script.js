@@ -319,8 +319,14 @@ window.fetchAndDisplayGroups = async function () {
         row.appendChild(cell);
         // Ottelu itseään vastaan: musta neliö
         if (player.idx === opponent.idx) {
-          cell.className = "self-match";
-          cell.setAttribute("aria-label", "—");
+          // Tulosvalikon kokoinen ja samassa kohdassa: sama elementti mustana, ei valittavissa
+          const box = document.createElement("select");
+          box.className = "self-match-box";
+          box.disabled = true;
+          box.tabIndex = -1;
+          box.setAttribute("aria-hidden", "true");
+          RESULT_OPTIONS.forEach(value => box.appendChild(new Option(value)));
+          cell.appendChild(box);
           return;
         }
         const matchResult = matchResultFor(groupData, player.idx, opponent.idx);
