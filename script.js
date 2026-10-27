@@ -317,8 +317,10 @@ window.fetchAndDisplayGroups = async function () {
       players.forEach(opponent => {
         const cell = document.createElement("td");
         row.appendChild(cell);
+        // Ottelu itseään vastaan: musta neliö
         if (player.idx === opponent.idx) {
-          cell.textContent = "-";
+          cell.className = "self-match";
+          cell.setAttribute("aria-label", "—");
           return;
         }
         const matchResult = matchResultFor(groupData, player.idx, opponent.idx);
