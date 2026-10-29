@@ -783,7 +783,7 @@ window.printGroupSheets = async function() {
       <div class="sheet">
         <div class="header">
           <div class="title-box">
-            <h1>MONTHLY MATCHES</h1>
+            <h1>SENIOR GAMES</h1>
             <h2>${currentMonth} ${currentYear}</h2>
           </div>
           <div class="logo-box">
