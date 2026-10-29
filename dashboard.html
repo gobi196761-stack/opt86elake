@@ -26,17 +26,21 @@
       margin-bottom: 20px;
     }
 
+    /* Logo ja teksti aina samalla rivillä; kapealla näytöllä fontti pienenee */
     h1.page-title {
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-wrap: wrap;
-      gap: 12px;
+      flex-wrap: nowrap;
+      gap: 0.4em;
+      white-space: nowrap;
+      font-size: clamp(14px, 4.6vw, 2em);
     }
 
     .title-logo {
       height: 2em;
       width: auto;
+      flex-shrink: 0;
     }
 
     #groups-container {
