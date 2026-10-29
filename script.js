@@ -1067,6 +1067,7 @@ function chooseMoveCount() {
           <option value="0">0</option>
           <option value="1" selected>1</option>
           <option value="2">2</option>
+          <option value="3">3</option>
         </select>
         <p style="font-size:0.9em; color:#7f8c8d;">This fetches the latest ratings and lets you edit the groups before saving.</p>
         <div style="display:flex; gap:10px; justify-content:flex-end;">
