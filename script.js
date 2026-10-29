@@ -690,7 +690,7 @@ window.printGroupSheets = async function() {
           .sheet { 
             width: 210mm; 
             height: 297mm; 
-            padding: 15mm; 
+            padding: 12mm; 
             box-sizing: border-box; 
             position: relative; 
             page-break-after: always;
@@ -706,16 +706,16 @@ window.printGroupSheets = async function() {
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            margin-bottom: 20px; 
-            border-bottom: 6px solid #000; 
-            padding-bottom: 10px; 
+            margin-bottom: 12px; 
+            border-bottom: 4px solid #000; 
+            padding-bottom: 6px; 
           }
-          .title-box h1 { margin: 0; font-size: 38pt; text-transform: uppercase; line-height: 1; }
+          .title-box h1 { margin: 0; font-size: 28pt; text-transform: uppercase; line-height: 1; }
           
-          .logo-box img { height: 130px; width: auto; display: block; }
+          .logo-box img { height: 80px; width: auto; display: block; }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-          th, td { border: 3px solid #000; padding: 10px; text-align: center; font-size: 16pt; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+          th, td { border: 2px solid #000; padding: 5px; text-align: center; font-size: 12pt; }
           th { background: #ddd; text-transform: uppercase; }
           
           .player-table th:nth-child(1) { width: 12%; }
@@ -730,19 +730,19 @@ window.printGroupSheets = async function() {
           .matches-grid { 
             display: grid; 
             grid-template-columns: 1fr 1fr; 
-            gap: 40px; 
+            gap: 24px; 
           }
           
-          .match-table th { background: #000; color: #fff; font-size: 14pt; }
-          .match-table td { height: 45px; font-size: 18pt; font-weight: bold; }
+          .match-table th { background: #000; color: #fff; font-size: 11pt; }
+          .match-table td { height: 26px; font-size: 13pt; font-weight: bold; }
           .match-table td:first-child { width: 40%; background: #f0f0f0; }
 
           .footer { 
             margin-top: auto;
-            border-top: 4px solid #000;
-            padding-top: 15px;
+            border-top: 3px solid #000;
+            padding-top: 8px;
             text-align: center; 
-            font-size: 18pt; 
+            font-size: 13pt; 
             font-weight: bold; 
             font-style: italic;
           }
