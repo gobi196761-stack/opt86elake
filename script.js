@@ -676,9 +676,6 @@ window.printGroupSheets = async function() {
   const data = snapshot.val();
   if (!data) return;
 
-  const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
-  const currentMonth = months[new Date().getMonth()];
-  const currentYear = new Date().getFullYear();
   // Käytetään paikallista tiedostoa, jotta se toimii varmasti
   const logoUrl = "logo.png";
 
@@ -714,7 +711,6 @@ window.printGroupSheets = async function() {
             padding-bottom: 10px; 
           }
           .title-box h1 { margin: 0; font-size: 38pt; text-transform: uppercase; line-height: 1; }
-          .title-box h2 { margin: 5px 0 0 0; font-size: 26pt; text-transform: uppercase; color: #333; }
           
           .logo-box img { height: 130px; width: auto; display: block; }
 
@@ -784,7 +780,6 @@ window.printGroupSheets = async function() {
         <div class="header">
           <div class="title-box">
             <h1>SENIOR GAMES</h1>
-            <h2>${currentMonth} ${currentYear}</h2>
           </div>
           <div class="logo-box">
             <img src="${logoUrl}" alt="OPT-86 Logo">
