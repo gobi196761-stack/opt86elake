@@ -1263,7 +1263,7 @@ function generateNewMatches(playerCount) {
 function setMonthlyResultsTitle() {
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const title = document.getElementById("monthlyResultsTitle");
-    if (title) title.textContent = `${months[new Date().getMonth()]} Results`;
+    if (title) title.textContent = `Monthly games – ${months[new Date().getMonth()]} results`;
 }
 
 window.onload = async function () {
