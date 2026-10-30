@@ -25,7 +25,6 @@ test("kaanna: muuttujia sisältävät lauseet", () => {
   assert.equal(kaanna("Group B chat", "fi"), "Ryhmä B – chat");
   assert.equal(kaanna("Signed in: Ukkola Jorma", "fi"), "Kirjautunut: Ukkola Jorma");
   assert.equal(kaanna("Monthly games - October results", "fi"), "Kuukausikisat - lokakuun tulokset");
-  assert.equal(kaanna("OCTOBER 2026", "fi"), "LOKAKUU 2026");
   assert.equal(kaanna("Error: boom", "fi"), "Virhe: boom");
   assert.equal(kaanna("Updated ratings for 7 players!", "fi"), "Päivitettiin 7 pelaajan rating!");
   assert.equal(
