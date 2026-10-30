@@ -3,7 +3,6 @@ import { getDatabase, ref, get, set, update, connectDatabaseEmulator } from 'htt
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut, sendPasswordResetEmail, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { initChat, chatButton, setGroups, openChatFromUrl, chatBeforeLogout, proposeMatch } from './chat.js';
 import { ratingChange, formatChange } from './lib/rating.js';
-import { t } from './kieli.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCx-WWULj2y8-ZfY7zKq-fCAkELwwP0-Ak",
@@ -684,7 +683,7 @@ window.printGroupSheets = async function() {
   printWindow.document.write(`
     <html>
       <head>
-        <title>${t("OPT-86 Printout")}</title>
+        <title>OPT-86 Printout</title>
         <style>
           @page { size: A4; margin: 0; }
           body { font-family: "Arial Black", Arial, sans-serif; margin: 0; padding: 0; color: #000; }
@@ -780,7 +779,7 @@ window.printGroupSheets = async function() {
       <div class="sheet">
         <div class="header">
           <div class="title-box">
-            <h1>${t("SENIOR GAMES")}</h1>
+            <h1>SENIOR GAMES</h1>
           </div>
           <div class="logo-box">
             <img src="${logoUrl}" alt="OPT-86 Logo">
@@ -790,9 +789,9 @@ window.printGroupSheets = async function() {
         <table class="player-table">
           <thead>
             <tr>
-              <th>${t("GROUP")} ${escapeHtml(groupLetter)}</th>
-              <th>${t("NAME")}</th>
-              <th>${t("RATING")}</th>
+              <th>GROUP ${escapeHtml(groupLetter)}</th>
+              <th>NAME</th>
+              <th>RATING</th>
             </tr>
           </thead>
           <tbody>
@@ -811,8 +810,8 @@ window.printGroupSheets = async function() {
             <table class="match-table">
               <thead>
                 <tr>
-                  <th>${t("MATCH")}</th>
-                  <th>${t("RESULT")}</th>
+                  <th>MATCH</th>
+                  <th>RESULT</th>
                 </tr>
               </thead>
               <tbody>
@@ -822,8 +821,8 @@ window.printGroupSheets = async function() {
             <table class="match-table">
               <thead>
                 <tr>
-                  <th>${t("MATCH")}</th>
-                  <th>${t("RESULT")}</th>
+                  <th>MATCH</th>
+                  <th>RESULT</th>
                 </tr>
               </thead>
               <tbody>
@@ -835,7 +834,7 @@ window.printGroupSheets = async function() {
         </div>
 
         <div class="footer">
-          ${t("Mark only sets, for example 3-2")}
+          Mark only sets, for example 3-2
         </div>
       </div>
     `);
