@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OPT-86 eläkekisat – Dashboard</title>
+  <title>OPT-86 Senior Games – Dashboard</title>
   <!-- Asennettava web-appi (manifest, kuvakkeet, iPhonen Koti-valikko) -->
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
@@ -41,6 +41,13 @@
       height: 2em;
       width: auto;
       flex-shrink: 0;
+    }
+
+    /* Kapealla näytöllä kielilippu (oikea yläkulma) jää otsikon yläpuolelle */
+    @media (max-width: 900px) {
+      h1.page-title {
+        margin-top: 34px;
+      }
     }
 
     #groups-container {
@@ -428,6 +435,7 @@
   <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
   <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"></script>
   <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
+  <script type="module" src="kieli.js"></script>
   <script type="module" src="script.js"></script>
 </body>
 </html>
