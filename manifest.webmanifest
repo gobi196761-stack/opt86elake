@@ -1,7 +1,7 @@
 {
-  "name": "OPT-86 eläkekisat",
-  "short_name": "OPT-86 eläke",
-  "description": "Oulun Pöytätennis -86 eläkekisat: groups, results and ratings",
+  "name": "OPT-86 seniorikisat",
+  "short_name": "OPT-86 seniori",
+  "description": "Oulun Pöytätennis -86 seniorikisat: groups, results and ratings",
   "lang": "fi",
   "start_url": "/dashboard.html",
   "scope": "/",
