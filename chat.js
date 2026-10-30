@@ -4,6 +4,7 @@
 // Lukemaan ja kirjoittamaan pääsevät vain ryhmän pelaajat (tietokannan säännöt).
 import { ref, query, limitToLast, onValue, push, remove, set, get, update, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
 import { monthKey, oldMonths, groupLabel, MAX_MESSAGE_LENGTH, MESSAGES_SHOWN } from './lib/chat-logic.js';
+import { t, paikallinen } from './kieli.js';
 
 let ctx = null;                  // { db, auth, user: () => currentUserData, isAdmin: () => bool }
 let groups = {};                 // viimeksi näytetyt ryhmät (Players)
@@ -152,9 +153,9 @@ function closeChat() {
 
 function formatTime(ms) {
   const d = new Date(ms);
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Helsinki" });
+  const time = d.toLocaleTimeString(paikallinen, { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Helsinki" });
   const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay ? time : `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "numeric", timeZone: "Europe/Helsinki" })} ${time}`;
+  return sameDay ? time : `${d.toLocaleDateString(paikallinen, { weekday: "short", day: "numeric", month: "numeric", timeZone: "Europe/Helsinki" })} ${time}`;
 }
 
 function renderMessages(groupKey, messages) {
@@ -193,6 +194,7 @@ function renderMessages(groupKey, messages) {
     const text = document.createElement("div");
     text.className = "chat-text";
     text.textContent = m.teksti;
+    text.setAttribute("translate", "no"); // käyttäjän viestiä ei käännetä
     item.append(meta, text);
     list.appendChild(item);
   });
@@ -244,7 +246,7 @@ export function proposeMatch(groupKey, opponent) {
 function fillProposal(opponent) {
   const me = ctx.user();
   const input = el("chat-input");
-  input.value = `${me.nimi} – ${opponent}: would ___ at ___ suit you?`;
+  input.value = t(`${me.nimi} – ${opponent}: would ___ at ___ suit you?`);
   input.focus();
   const at = input.value.indexOf("___");
   input.setSelectionRange(at, at + 3);
