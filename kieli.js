@@ -13,7 +13,7 @@ export const t = teksti => kaanna(teksti, kieli);
 export const paikallinen = kieli === "fi" ? "fi-FI" : "en-GB";
 
 const LIPUT = {
-  en: '<svg viewBox="0 0 60 30" width="28" height="14" aria-hidden="true">' +
+  en: '<svg viewBox="0 0 60 30" width="56" height="28" aria-hidden="true">' +
       '<clipPath id="uk-a"><path d="M0,0v30h60v-30z"/></clipPath>' +
       '<clipPath id="uk-b"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath>' +
       '<g clip-path="url(#uk-a)"><path d="M0,0v30h60v-30z" fill="#012169"/>' +
@@ -21,7 +21,7 @@ const LIPUT = {
       '<path d="M0,0L60,30M60,0L0,30" clip-path="url(#uk-b)" stroke="#C8102E" stroke-width="4"/>' +
       '<path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/>' +
       '<path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></g></svg>',
-  fi: '<svg viewBox="0 0 18 11" width="23" height="14" aria-hidden="true">' +
+  fi: '<svg viewBox="0 0 18 11" width="46" height="28" aria-hidden="true">' +
       '<rect width="18" height="11" fill="#fff"/><rect x="5" width="3" height="11" fill="#002f6c"/>' +
       '<rect y="4" width="18" height="3" fill="#002f6c"/></svg>',
 };
@@ -79,6 +79,32 @@ vaihto.title = toinen === "fi" ? "Suomeksi" : "In English";
 vaihto.setAttribute("aria-label", vaihto.title);
 vaihto.setAttribute("translate", "no");
 vaihto.innerHTML = LIPUT[toinen];
-vaihto.style.cssText = "position:absolute; top:10px; right:10px; z-index:10; display:inline-flex; padding:6px; line-height:0;";
 vaihto.querySelector("svg").style.cssText = "border:1px solid #ccc; border-radius:2px; display:block;";
-document.body.appendChild(vaihto);
+
+// Tulossivulla lippu on otsikon kanssa samalla rivillä; muualla oikeassa yläkulmassa
+const otsikko = document.querySelector("h1.page-title");
+if (otsikko) {
+  vaihto.style.cssText = "display:inline-flex; flex-shrink:0; line-height:0;";
+  otsikko.appendChild(vaihto);
+  // Pienennetään otsikon fonttia, kunnes logo, teksti ja lippu mahtuvat riville
+  const sovita = () => {
+    otsikko.style.fontSize = "";
+    const leveys = () => {
+      const lapset = [...otsikko.children];
+      const vali = parseFloat(getComputedStyle(otsikko).columnGap) || 0;
+      return lapset.reduce((summa, el) => summa + el.getBoundingClientRect().width, 0) + vali * (lapset.length - 1);
+    };
+    let koko = parseFloat(getComputedStyle(otsikko).fontSize);
+    while (leveys() > otsikko.clientWidth && koko > 8) {
+      koko -= 0.5;
+      otsikko.style.fontSize = `${koko}px`;
+    }
+  };
+  sovita();
+  addEventListener("resize", sovita);
+  addEventListener("load", sovita);
+  new MutationObserver(sovita).observe(otsikko, { childList: true, subtree: true, characterData: true });
+} else {
+  vaihto.style.cssText = "position:absolute; top:10px; right:10px; z-index:10; display:inline-flex; padding:6px; line-height:0;";
+  document.body.appendChild(vaihto);
+}
