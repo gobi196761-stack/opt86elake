@@ -678,6 +678,8 @@ window.printGroupSheets = async function() {
 
   // Käytetään paikallista tiedostoa, jotta se toimii varmasti
   const logoUrl = "logo.png";
+  // Linkki web-sovellukseen, jossa tulokset voi syöttää itse
+  const appUrl = `${location.origin}/`;
 
   const printWindow = window.open('', '_blank');
   printWindow.document.write(`
@@ -746,6 +748,8 @@ window.printGroupSheets = async function() {
             font-weight: bold; 
             font-style: italic;
           }
+          .web-app { margin-top: 4px; font-size: 0.75em; font-style: normal; }
+          .web-app a { color: #000; }
         </style>
       </head>
       <body>
@@ -835,6 +839,7 @@ window.printGroupSheets = async function() {
 
         <div class="footer">
           Mark only sets, for example 3-2
+          <div class="web-app">You can also enter your results in the web app: <a href="${appUrl}">${location.host}</a></div>
         </div>
       </div>
     `);
