@@ -839,7 +839,7 @@ window.printGroupSheets = async function() {
 
         <div class="footer">
           Mark only sets, for example 3-2
-          <div class="web-app">You can also enter your results in the web app: <a href="${appUrl}">${location.host}</a></div>
+          <div class="web-app">You can also enter your results into the web app: <a href="${appUrl}">${location.origin}</a></div>
         </div>
       </div>
     `);
