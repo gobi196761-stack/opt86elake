@@ -450,11 +450,6 @@ function addButtons() {
   const btnDiv = document.createElement("div");
   btnDiv.style.margin = "20px 0";
 
-  const updateRatingsBtn = document.createElement("button");
-  updateRatingsBtn.textContent = "Update ratings";
-  updateRatingsBtn.onclick = updateRatings;
-  updateRatingsBtn.style.marginRight = "10px";
-
   const updateGroupsBtn = document.createElement("button");
   updateGroupsBtn.textContent = "Generate new groups";
   updateGroupsBtn.onclick = updateGroups;
@@ -484,7 +479,6 @@ function addButtons() {
   usersBtn.style.background = "#8e44ad";
   usersBtn.style.marginRight = "10px";
 
-  btnDiv.appendChild(updateRatingsBtn);
   btnDiv.appendChild(updateGroupsBtn);
   btnDiv.appendChild(restoreBtn);
   btnDiv.appendChild(printBtn);
@@ -1051,83 +1045,6 @@ window.restoreBackup = async function() {
   } catch (e) {
     alert("Error during restore: " + e.message);
   }
-};
-
-// SPTL RATING UPDATE
-window.updateRatings = async function (event) {
-    // Jos kutsutaan napista, event on olemassa. Jos koodista, se voi olla null.
-    const btn = event?.target || document.querySelector('button[onclick="updateRatings"]');
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Fetching...";
-    }
-
-    try {
-        console.log("Fetching ratings from the API...");
-        const res = await fetch("/api/get-ratings");
-        
-        // Lue vastaus ensin tekstinä vianetsintää varten
-        const text = await res.text();
-        console.log("Server response (raw):", text.substring(0, 200));
-
-        let result;
-        try {
-            result = JSON.parse(text);
-        } catch (parseError) {
-            console.error("JSON parsing error:", parseError);
-            throw new Error("The server response is not valid JSON data. Check the Vercel logs.");
-        }
-        
-        if (!res.ok) {
-            throw new Error(result.error || `The server returned an error ${res.status}`);
-        }
-
-        if (!Array.isArray(result)) {
-            console.error("Response is not an array:", result);
-            throw new Error("The rating data is not in the correct format. Check the Netlify logs.");
-        }
-
-        const ratings = result;
-        const lookup = ratings.reduce((acc, p) => {
-            if (p?.nimi) acc[p.nimi.trim().toLowerCase()] = p.rating;
-            return acc;
-        }, {});
-
-        const snapshot = await get(ref(db, "Players"));
-        const data = snapshot.val();
-        if (!data) throw new Error("No players found in the database.");
-
-        const updates = {};
-        let updatedCount = 0;
-
-        Object.keys(data).forEach(g => {
-            Object.keys(data[g]).forEach(p => {
-                if (p.startsWith("pelaaja")) {
-                    const name = data[g][p].nimi.trim().toLowerCase();
-                    if (lookup[name] !== undefined) {
-                        updates[`Players/${g}/${p}/rating`] = lookup[name];
-                        updatedCount++;
-                    }
-                }
-            });
-        });
-
-        if (updatedCount === 0) {
-            alert("Ratings were fetched, but none of the players on the list were found in the SPTL registry. Check the spelling of the names.");
-        } else {
-            await update(ref(db), updates);
-            alert(`Updated ratings for ${updatedCount} players!`);
-            location.reload();
-        }
-    } catch (e) {
-        alert("Error: " + e.message);
-        console.error("Rating update error:", e);
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = "Update ratings";
-        }
-    }
 };
 
 // PELAAJAN POISTO (POISTETTU DASHBOARDILTA, KÄYTETÄÄN VAIN MUOKKAUSTILASSA)
