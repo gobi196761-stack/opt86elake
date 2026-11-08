@@ -472,6 +472,12 @@ function addButtons() {
   printBtn.style.background = "#2c3e50";
   printBtn.style.marginRight = "10px";
 
+  const pdfBtn = document.createElement("button");
+  pdfBtn.textContent = "Download PDF";
+  pdfBtn.onclick = () => downloadGroupSheetsPdf(pdfBtn);
+  pdfBtn.style.background = "#2c3e50";
+  pdfBtn.style.marginRight = "10px";
+
   const usersBtn = document.createElement("button");
   usersBtn.textContent = "Manage users";
   usersBtn.onclick = openUserManagement;
@@ -482,6 +488,7 @@ function addButtons() {
   btnDiv.appendChild(updateGroupsBtn);
   btnDiv.appendChild(restoreBtn);
   btnDiv.appendChild(printBtn);
+  btnDiv.appendChild(pdfBtn);
   btnDiv.appendChild(usersBtn);
 
   const migrateBtn = document.createElement("button");
@@ -670,19 +677,14 @@ window.runDataMigration = async function () {
   }
 };
 
-window.printGroupSheets = async function() {
-  const groupsRef = ref(db, "Players");
-  const snapshot = await get(groupsRef);
-  const data = snapshot.val();
-  if (!data) return;
-
+// Ryhmälomakkeiden HTML (A4-sivu per ryhmä): sama sisältö tulostukseen ja PDF:ään
+function groupSheetsHtml(data) {
   // Käytetään paikallista tiedostoa, jotta se toimii varmasti
   const logoUrl = "logo.png";
   // Linkki web-sovellukseen, jossa tulokset voi syöttää itse
   const appUrl = `${location.origin}/`;
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
+  let html = `
     <html>
       <head>
         <title>OPT-86 Printout</title>
@@ -753,7 +755,7 @@ window.printGroupSheets = async function() {
         </style>
       </head>
       <body>
-  `);
+  `;
 
   const sortedGroupKeys = Object.keys(data).sort();
   
@@ -779,7 +781,7 @@ window.printGroupSheets = async function() {
     const leftMatches = matchPairs.slice(0, mid);
     const rightMatches = matchPairs.slice(mid);
 
-    printWindow.document.write(`
+    html += `
       <div class="sheet">
         <div class="header">
           <div class="title-box">
@@ -842,19 +844,95 @@ window.printGroupSheets = async function() {
           <div class="web-app">You can also enter your results into the web app: <a href="${appUrl}">${location.origin}</a></div>
         </div>
       </div>
-    `);
+    `;
   });
 
-  printWindow.document.write(`
+  html += `
       </body>
     </html>
-  `);
+  `;
+  return html;
+}
+
+async function fetchGroups() {
+  const snapshot = await get(ref(db, "Players"));
+  return snapshot.val();
+}
+
+window.printGroupSheets = async function() {
+  // Ikkuna avataan heti napin painalluksesta, ettei selain estä sitä ponnahdusikkunana
+  const printWindow = window.open('', '_blank');
+  const data = await fetchGroups();
+  if (!data) { printWindow?.close(); return; }
+  printWindow.document.write(groupSheetsHtml(data));
   printWindow.document.close();
-  
+
   // Odota että kuvat latautuvat ennen tulostusta
   setTimeout(() => {
     printWindow.print();
   }, 1000);
+};
+
+const PDF_FILENAME = () => "senior-games-groups.pdf";
+
+// PDF-kirjastot ladataan vasta tarvittaessa
+const PDF_LIBS = [
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+];
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`Could not load ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+// Ryhmälomakkeet suoraan PDF-tiedostoksi (ei tarvitse puhelimen tulostuspalvelua):
+// lomakkeet piirretään piilotettuun kehykseen ja kukin A4-sivu kuvana PDF:n sivulle.
+window.downloadGroupSheetsPdf = async function(btn) {
+  const label = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = "Creating PDF..."; }
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed; left:-10000px; top:0; width:794px; height:1123px; border:0;";
+  try {
+    const [data] = await Promise.all([fetchGroups(), ...PDF_LIBS.map(loadScript)]);
+    if (!data) return;
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    doc.open();
+    doc.write(groupSheetsHtml(data));
+    doc.close();
+    await Promise.all([...doc.images].map(img => img.complete ? null : new Promise(r => { img.onload = img.onerror = r; })));
+    doc.body.style.cssText = "margin:0; padding:0; background:#fff;";
+
+    const pdf = new window.jspdf.jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const sheets = [...doc.querySelectorAll(".sheet")];
+    for (const [i, sheet] of sheets.entries()) {
+      sheet.style.margin = "0";
+      sheet.style.boxShadow = "none";
+      const canvas = await window.html2canvas(sheet, { scale: 2, backgroundColor: "#ffffff", windowWidth: 794 });
+      if (i > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 210, 297);
+      // Web-sovelluksen linkki klikattavaksi kuvan päälle
+      const link = sheet.querySelector(".web-app a");
+      if (link) {
+        const mm = 210 / sheet.offsetWidth, [r, l] = [sheet.getBoundingClientRect(), link.getBoundingClientRect()];
+        pdf.link((l.left - r.left) * mm, (l.top - r.top) * mm, l.width * mm, l.height * mm, { url: link.href });
+      }
+    }
+    pdf.save(PDF_FILENAME());
+  } catch (e) {
+    alert("Could not create the PDF: " + e.message);
+  } finally {
+    frame.remove();
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
 };
 
 // Muokkaustilan pelaajarivi (nimi lisätään tekstinä, ei HTML:nä)
