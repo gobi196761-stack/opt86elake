@@ -34,5 +34,10 @@
       "path": "/api/chat-cleanup",
       "schedule": "5 0 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/read-sheet.js": {
+      "maxDuration": 60
+    }
+  }
 }

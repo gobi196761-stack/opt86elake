@@ -3,6 +3,7 @@ import { getDatabase, ref, get, set, update, connectDatabaseEmulator } from 'htt
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut, sendPasswordResetEmail, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { initChat, chatButton, setGroups, openChatFromUrl, chatBeforeLogout, proposeMatch } from './chat.js';
 import { ratingChange, formatChange } from './lib/rating.js';
+import { sheetOrder, groupLetter, compareSheetResults, resultUpdates } from './lib/tulokset-kuvasta.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCx-WWULj2y8-ZfY7zKq-fCAkELwwP0-Ak",
@@ -473,6 +474,12 @@ function addButtons() {
   pdfBtn.style.background = "#2c3e50";
   pdfBtn.style.marginRight = "10px";
 
+  const photoBtn = document.createElement("button");
+  photoBtn.textContent = "📷 Read results from photo";
+  photoBtn.onclick = readResultsFromPhoto;
+  photoBtn.style.background = "#16a085";
+  photoBtn.style.marginRight = "10px";
+
   const usersBtn = document.createElement("button");
   usersBtn.textContent = "Manage users";
   usersBtn.onclick = openUserManagement;
@@ -483,6 +490,7 @@ function addButtons() {
   btnDiv.appendChild(restoreBtn);
   btnDiv.appendChild(printBtn);
   btnDiv.appendChild(pdfBtn);
+  btnDiv.appendChild(photoBtn);
   btnDiv.appendChild(usersBtn);
 
   const migrateBtn = document.createElement("button");
@@ -755,10 +763,7 @@ function groupSheetsHtml(data) {
   
   sortedGroupKeys.forEach((groupKey, index) => {
     const groupData = data[groupKey];
-    const players = Object.keys(groupData)
-      .filter(key => key.startsWith("pelaaja"))
-      .map(key => ({ ...groupData[key], id: key }))
-      .sort((a, b) => b.rating - a.rating);
+    const players = sheetOrder(groupData);
 
     const groupLetter = groupKey.split(' ')[1] || 'A';
     
@@ -928,6 +933,166 @@ window.downloadGroupSheetsPdf = async function(btn) {
     if (btn) { btn.disabled = false; btn.textContent = label; }
   }
 };
+
+// TULOKSET KUVASTA: ylläpitäjä kuvaa ilmoitustaululla olevat ryhmälomakkeet, palvelin lukee
+// käsin kirjoitetut tulokset (api/read-sheet) ja ne verrataan tulostaulukkoon ennen tallennusta.
+window.readResultsFromPhoto = function() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.setAttribute("capture", "environment");   // puhelimessa avautuu suoraan kamera
+  input.onchange = () => { if (input.files[0]) showPhotoResults(input.files[0]); };
+  input.click();
+};
+
+// Kuva pienennetään (pitkä sivu enintään 2000 px) ja lähetetään JPEG-muodossa
+async function photoAsJpeg(file) {
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+}
+
+async function showPhotoResults(file) {
+  const overlay = document.createElement("div");
+  overlay.id = "photo-results";
+  overlay.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; overflow-y:auto; padding:16px; box-sizing:border-box;";
+  const panel = document.createElement("div");
+  panel.style.cssText = "background:white; padding:20px; border-radius:8px; max-width:720px; margin:0 auto;";
+  overlay.appendChild(panel);
+  const photoUrl = URL.createObjectURL(file);
+  const close = () => { overlay.remove(); URL.revokeObjectURL(photoUrl); };
+
+  panel.innerHTML = `<h3 style="margin-top:0;">Results from the photo</h3>
+    <img src="${photoUrl}" alt="" style="width:100%; max-height:50vh; object-fit:contain; border:1px solid #ccc; border-radius:4px; background:#f5f5f5;">
+    <p id="photo-status" style="color:#7f8c8d;">Reading results from the photo…</p>
+    <div id="photo-review"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:15px;">
+      <button type="button" id="photo-cancel" style="background:#95a5a6;">Cancel</button>
+      <button type="button" id="photo-save" style="background:#27ae60;" disabled>Save selected</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  panel.querySelector("#photo-cancel").onclick = close;
+  const status = panel.querySelector("#photo-status");
+
+  let comparison;
+  try {
+    const image = await photoAsJpeg(file);
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch("/api/read-sheet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ image, mediaType: "image/jpeg" }),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || `The server returned an error ${res.status}`);
+    comparison = compareSheetResults(await fetchGroups(), result.sheets);
+  } catch (e) {
+    status.textContent = "Could not read the photo: " + e.message;
+    status.style.color = "#c0392b";
+    return;
+  }
+  renderPhotoReview(panel, comparison, close);
+}
+
+function renderPhotoReview(panel, { rows, warnings, unclear }, close) {
+  const status = panel.querySelector("#photo-status");
+  const review = panel.querySelector("#photo-review");
+  const conflicts = rows.filter(r => r.status === "conflict").length;
+  status.textContent = rows.length ? `Results read: ${rows.length}` : "No results were found in the photo.";
+  status.style.color = "#2c3e50";
+
+  if (conflicts) {
+    const notice = document.createElement("p");
+    notice.style.cssText = "background:#fdecea; color:#c0392b; padding:10px; border-radius:4px; font-weight:bold;";
+    notice.textContent = `Results that differ from the table: ${conflicts}. Choose which result to keep.`;
+    review.appendChild(notice);
+  }
+
+  const table = document.createElement("table");
+  table.style.cssText = "margin:0; font-size:14px;";
+  table.innerHTML = "<tr><th>Match</th><th>Photo</th><th>Table</th><th>Save</th></tr>";
+  const choices = [];
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    if (r.status === "conflict") tr.style.background = "#fdecea";
+    const match = document.createElement("td");
+    const head = document.createElement("b");
+    head.textContent = `${groupLetter(r.groupKey)}: ${r.a}–${r.b}`;
+    match.append(head, document.createElement("br"), `${r.nameA} – ${r.nameB}`);
+    tr.appendChild(match);
+    [r.photo, r.table].forEach(text => { const td = document.createElement("td"); td.textContent = text; tr.appendChild(td); });
+    tr.querySelectorAll("td").forEach(td => { td.style.padding = "6px"; });
+    const action = document.createElement("td");
+    if (r.status === "same") {
+      action.textContent = "✓ Same";
+    } else if (r.status === "new") {
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = true;
+      box.setAttribute("aria-label", "Save");
+      action.appendChild(box);
+      choices.push({ row: r, selected: () => box.checked });
+    } else {
+      // Ristiriita: valitaan taulukon tai kuvan tulos (oletus: taulukon tulos säilyy)
+      const options = [["table", `Table ${r.table}`], ["photo", `Photo ${r.photo}`]].map(([value, label]) => {
+        const lbl = document.createElement("label");
+        lbl.style.display = "block";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `photo-choice-${i}`;
+        radio.value = value;
+        radio.checked = value === "table";
+        lbl.append(radio, " ", label);
+        action.appendChild(lbl);
+        return radio;
+      });
+      choices.push({ row: r, selected: () => options[1].checked });
+    }
+    action.style.padding = "6px";
+    tr.appendChild(action);
+    table.appendChild(tr);
+  });
+  if (rows.length) {
+    const scroll = document.createElement("div");
+    scroll.style.overflowX = "auto";
+    scroll.appendChild(table);
+    review.appendChild(scroll);
+  }
+
+  const notes = [
+    ...warnings.map(w =>
+      w.type === "group" ? `Group ${w.group} is not in the table.` :
+      w.type === "name" ? `${w.groupKey.replace("Ryhmä", "Group")}, player ${w.number}: the sheet says "${w.sheetName}", the table says "${w.tableName}".` :
+      `${w.groupKey.replace("Ryhmä", "Group")}: match ${w.match} with result ${w.score} does not fit the group.`),
+    ...unclear.map(u => `${u.groupKey.replace("Ryhmä", "Group")}, match ${u.match}: not read (${u.note}).`),
+  ];
+  if (notes.length) {
+    const list = document.createElement("ul");
+    list.style.cssText = "color:#7f8c8d; font-size:0.9em;";
+    notes.forEach(text => { const li = document.createElement("li"); li.textContent = text; list.appendChild(li); });
+    review.appendChild(list);
+  }
+
+  const saveBtn = panel.querySelector("#photo-save");
+  saveBtn.disabled = choices.length === 0;
+  saveBtn.onclick = async () => {
+    const selected = choices.filter(c => c.selected()).map(c => c.row);
+    if (selected.length) {
+      try {
+        await update(ref(db), resultUpdates(selected));
+      } catch (e) {
+        alert("Could not save the result: " + e.message);
+        return;
+      }
+    }
+    close();
+    fetchAndDisplayGroups();
+  };
+}
 
 // Muokkaustilan pelaajarivi (nimi lisätään tekstinä, ei HTML:nä)
 function createEditListItem(name, rating) {
